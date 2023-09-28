@@ -1,0 +1,122 @@
+#!/bin/bash
+
+in_dir_flag=0
+out_dir_flag=0
+deleteMincFiles_flag=0
+
+# First option is set without a -
+FirstInputFirstChar=$1
+FirstInputFirstChar=${FirstInputFirstChar:0:1}
+if [[ !("$FirstInputFirstChar" == "-") ]]; then
+	in_dir_flag=1
+	in_dir="$1"
+	shift
+fi
+FirstInputFirstChar=$1
+FirstInputFirstChar=${FirstInputFirstChar:0:1}
+if [[ !("$FirstInputFirstChar" == "-") ]]; then
+	out_dir_flag=1
+	out_dir="$1"
+	shift
+fi
+
+
+while getopts 'i:o:d:' OPTION
+do
+	case $OPTION in
+
+#mandatory
+
+	  i)	in_dir_flag=1
+			in_dir="$OPTARG"
+			;;	
+	  o)	out_dir_flag=1
+			out_dir="$OPTARG"
+			;;
+	  d)	deleteMincFiles_flag=1
+			deleteMincFilesExcludePaths="$OPTARG"
+			;;
+	  ?)	printf "Usage: %s:\nmandatory: \n\n" $(basename $0) >&2
+			exit 2
+			;;
+	esac
+done
+shift $(($OPTIND - 1))
+
+
+# Remaining options
+if [[ $# > 0 ]]; then
+	in_dir_flag=1
+	in_dir="$1"
+	shift
+fi
+# Remaining options
+if [[ $# > 0 ]]; then
+	out_dir_flag=1
+	out_dir="$1"
+	shift
+fi
+# Remaining options
+if [[ $# > 0 ]]; then
+	deleteMincFiles_flag=1
+	deleteMincFilesExcludePaths="$1"
+	shift
+fi
+
+
+
+if [[ $in_dir == "./" ]]; then
+	in_dir="."
+fi
+
+
+# Delete trailing "/"
+lastchar=${in_dir#${in_dir%?}}
+if [[ $lastchar == "/" ]]; then
+	in_dir=${in_dir%/}
+fi
+
+
+#MincFiles=$(find ${in_dir} -type f -name "*.mnc")
+#for file in $MincFiles; do
+#	echo "Converting $file to nii ..."
+#	filename=${file%.mnc}
+#	mnc2nii -quiet $file ${filename}.nii &>/dev/null
+#done
+
+MincFiles=$(find ${in_dir} -type f -name "*.mnc")
+MincFiles2=$(find ${in_dir} -type f -name "*.mncc")
+MincFiles="${MincFiles} ${MincFiles2}"
+for file in $MincFiles; do
+	FileOnly=$(basename $file)
+	echo -ne "\nConverting $FileOnly to nii ..."
+	FileIsMncc=$(echo $FileOnly | grep -c ".mncc")
+
+	if [[ "$FileIsMncc" == "0" ]]; then
+		filename=${file%.mnc}
+		OutFile=${filename}.nii
+	else
+		filename=${file%.mncc}
+		OutFile=${filename}_interpol.nii
+	fi
+
+	mnc2nii -quiet $file $OutFile &>/dev/null
+	DontDelete_flag=0
+	DontDelete_flag=$(echo $FileOnly | grep -c "_template\|magnitude")
+	if [[ $deleteMincFiles_flag -eq 1 ]]; then
+		for ExcludeDelPaths in $deleteMincFilesExcludePaths; do
+			if [[ "$file" == "$ExcludeDelPaths/$FileOnly" ]]; then
+				DontDelete_flag=1
+			fi
+		done
+		if [[ "$DontDelete_flag" == "0" ]]; then
+			echo -ne " deleting mnc ..."
+			rm $file
+		fi
+	fi
+done
+
+
+
+
+
