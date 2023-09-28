@@ -1,4 +1,8 @@
-# Compiled MATLAB and bash scripts for MRSI (from Wolfgang Bogner group)
+# Compiled MATLAB and bash scripts for MRSI
+
+The reconstruction algorithms and scripts were created by the Wolfgang Bogner group.
+
+All dependencies required to run these scripts are bundled in a Neurodesk container.
 
 ## Neurodesk Explanation
 
