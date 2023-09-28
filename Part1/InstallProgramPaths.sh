@@ -24,7 +24,7 @@ export Matlab_Compiled=../matlab_compiled
 export betp=bet
 
 # LCModel Path
-export LCM_Path=lcmodel
+export LCM_Path=/opt/lcmodel-6.3/.lcmodel/bin/lcmodel
 
 export RunLCModelOn=$(hostname)		# Run LCModel on different computer, connecting via ssh. You need a key so that you can automatically connect to this
 									# computer, without needing to type in the password!
