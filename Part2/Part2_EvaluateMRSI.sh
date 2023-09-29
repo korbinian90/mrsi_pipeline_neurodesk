@@ -60,7 +60,7 @@ cd "$( dirname "${BASH_SOURCE[0]}" )"
 
 
 # -1.3 Create directories
-tmp_trunk="tmp"
+tmp_trunk="${calldir}/tmp"
 tmp_num=1
 tmp_dir="${tmp_trunk}${tmp_num}"
 while [ -d "$tmp_dir" ]; do
