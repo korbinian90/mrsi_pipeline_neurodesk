@@ -1,3 +1,4 @@
+#! /bin/bash
 # 2.
 ############ USE MASK OR CREATE MASK OUT OF (IN PRIORITY ORDER): MASK, T1_MAP, VOLUME COIL, SUM OVER CHANNELS OF IMAGING-MAGNITUDES, SUM OVER CHANNELS OF CSI-MAGNITUDES ############
 
@@ -33,13 +34,9 @@
 
 
 
-
-
-
-
-
-
-
+# Required here because dcm2mnc only takes relative paths
+cd "${tmp_dir}" || exit
+tmp_dir="."
 
 
 #read -p "Stop before creating mask1."
