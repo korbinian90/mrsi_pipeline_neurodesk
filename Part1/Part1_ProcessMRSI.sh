@@ -133,6 +133,7 @@ export basis_echo_flag=0
 export XPACE_motion_correction_flag=0
 export julia_reconstruction=0
 export old_dat_file_flag=0
+export B1corr_flag=0
 
 # INITIALIZING
 export phase_encoding_direction_is_RL_flag=0
@@ -141,7 +142,7 @@ LipidDecon_MethodAndNoOfLoops="L1,10"
 export julia_n_threads="auto"
 export julia_mmap="false"
 
-while getopts 'c:b:o:i:f:v:t:a:w:W:m:h:L:r:R:g:Fuz:I:A:lj:e:B:J:X:s:d?' OPTION; do
+while getopts 'c:b:o:i:f:v:t:a:w:W:m:h:L:r:R:g:Fuz:I:A:lj:e:B:J:X:s:dC:?' OPTION; do
 	case $OPTION in
 
 	#mandatory
@@ -263,6 +264,10 @@ while getopts 'c:b:o:i:f:v:t:a:w:W:m:h:L:r:R:g:Fuz:I:A:lj:e:B:J:X:s:d?' OPTION; 
 	d)
 		export old_dat_file_flag=1
 		;;
+	C)
+		export B1corr_flag=1 # flag is checked for in create_mask.sh
+		export B1_path="$OPTARG"
+		;;
 	?)
 		printf "
 
@@ -300,6 +305,7 @@ optional:
 -e	[LineBroadeningInHz]    Apply an exponential filter to the spectra [Hz].
 -s	[threads] [mmap] 		Use the Julia reconstruction version (less RAM usage, different reconstruction algorithm). [threads=auto] can be auto or a number. [mmap=false] can be \"true\", \"false\" or a path.
 -d  [Nothing]				Use the deprecated, old dat file format (before sequence merging, 06/2023)
+-C	[B1 reading]			Path of B1 DICOM data, used for B1 correction.
 
 " $(basename $0) >&2
 
@@ -382,7 +388,7 @@ else
 	fi
 	echo -e "\n\nRunning:\n"
 	(
-		set -x # Print the command that is being executed
+		set -x                                                  # Print the command that is being executed
 		"$Matlab_Compiled/MRSI_Reconstruction" "$abs_tmp_dir" 1 # If we pass over several IMA or dat files, average them
 	)
 fi

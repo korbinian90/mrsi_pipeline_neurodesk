@@ -2,8 +2,12 @@
 
 # Create Mincfiles out of raw files
 # Find the first .mnc file and save its name (to be used as a template)
-csilate=$(ls ${out_dir}/maps/Orig | find ${out_dir}/maps/Orig . -name '*.mnc' | head -1)
+csilate=$out_dir/maps/csi_template.mnc
+echo -e "\nUsing this CSI template in raw2mnc_seg.sh:\n$csilate\n"
 
+
+rawtominc -float -clobber -like ${out_dir}/maps/Seg_temp/template_bet_pve_1.mnc -input ${out_dir}/maps/Seg_temp/WM_CSI_map.raw ${out_dir}/maps/Seg_temp/WM_CSI_map_tmp.mnc
+rawtominc -float -clobber -like ${out_dir}/maps/Seg_temp/template_bet_pve_2.mnc -input ${out_dir}/maps/Seg_temp/GM_CSI_map.raw ${out_dir}/maps/Seg_temp/GM_CSI_map_tmp.mnc
 
 
 # From magnitude.mnc - read the information needed for converting from raw to mnc
@@ -47,6 +51,25 @@ echo "rawtominc -float -clobber -input ${out_dir}/maps/Seg_temp/CSF_CSI_map.raw 
 bash ${out_dir}/maps/Seg_temp/RtoM_WM.txt
 bash ${out_dir}/maps/Seg_temp/RtoM_GM.txt
 bash ${out_dir}/maps/Seg_temp/RtoM_CSF.txt
+
+# mincresample the segmented into csi with dircos 
+echo "mincresample -clobber -like $csilate -xdircos ${dircos_csi[0]} -ydircos ${dircos_csi[1]} -zdircos ${dircos_csi[2]} -nearest_neighbour ${out_dir}/maps/Seg_temp/WM_CSI_map_tmp.mnc ${out_dir}/maps/Seg_temp/WM_CSI_map_tmp2.mnc" > ${out_dir}/maps/Seg_temp/resampletoCSI1.txt
+echo "mincresample -clobber -like $csilate -xdircos ${dircos_csi[0]} -ydircos ${dircos_csi[1]} -zdircos ${dircos_csi[2]} -nearest_neighbour ${out_dir}/maps/Seg_temp/GM_CSI_map_tmp.mnc ${out_dir}/maps/Seg_temp/GM_CSI_map_tmp2.mnc" > ${out_dir}/maps/Seg_temp/resampletoCSI2.txt
+bash ${out_dir}/maps/Seg_temp/resampletoCSI1.txt
+bash ${out_dir}/maps/Seg_temp/resampletoCSI2.txt
+
+### to account for different direction cosines 
+minctoraw -nonormalize -float -range 0 1 ${out_dir}/maps/Seg_temp/WM_CSI_map_tmp2.mnc > ${out_dir}/maps/Extra/WM_CSI_map_tmp.raw
+minctoraw -nonormalize -float -range 0 1 ${out_dir}/maps/Seg_temp/GM_CSI_map_tmp2.mnc > ${out_dir}/maps/Extra/GM_CSI_map_tmp.raw
+
+
+rawtominc -like $csilate -float -clobber -input ${out_dir}/maps/Extra/WM_CSI_map_tmp.raw ${out_dir}/maps/Extra/WM_CSI_map.mnc
+rawtominc -like $csilate -float -clobber -input ${out_dir}/maps/Extra/GM_CSI_map_tmp.raw ${out_dir}/maps/Extra/GM_CSI_map.mnc
+
+
+minctoraw -nonormalize -float -range 0 1 ${out_dir}/maps/Extra/WM_CSI_map.mnc > ${out_dir}/maps/Extra/WM_CSI_map.raw
+minctoraw -nonormalize -float -range 0 1 ${out_dir}/maps/Extra/GM_CSI_map.mnc > ${out_dir}/maps/Extra/GM_CSI_map.raw
+
 
 # Resample to get single segmented slice with the same thickness as MRSI slice
 # TODO - Right now, we use mincresample, which is interpolating all slices in segmentation to create thick SI-like slice

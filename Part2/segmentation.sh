@@ -1,3 +1,4 @@
+#!/bin/bash
 ########################################################################################################
 ########### Segmentation of T1 (magnitude.mnc) into GM, WM and CSF #####################################
 ########################################################################################################
@@ -16,10 +17,9 @@
 		# default=0; positive values give larger brain outline at bottom, smaller at top
 #	    Fourth step : 
 
-#!/bin/bash
-
 ## Find the first .mnc file and save its name (to be used as a template)
-csilate=$(ls ${out_dir}/maps/Orig | find ${out_dir}/maps/Orig . -name '*.mnc' | head -1)
+csilate="$out_dir/maps/csi_template.mnc"
+echo -e "\nUsing this CSI template in segmentation.sh:\n$csilate\n"
 
 # From csi - read the information needed for mincresampling the T1
 step_csi=$(mincinfo $csilate -attvalue xspace:step -attvalue yspace:step -attvalue zspace:step)
@@ -50,10 +50,8 @@ echo "mincresample -clobber -xdircos ${dircos_csi[0]} -ydircos ${dircos_csi[1]} 
 
 bash ${out_dir}/maps/Seg_temp/resampleT1toCSI.txt
 
-
 # convert mnc T1 image (resampled) into nifti image
 mnc2nii ${out_dir}/maps/Seg_temp/magnitude_resamToCsi.mnc ${out_dir}/maps/Seg_temp/Nifti/magnitude_resamToCsi.nii
-#mnc2nii ${out_dir}/maps/magnitude.mnc ${out_dir}/maps/Seg_temp/Nifti/magnitude_resamToCsi.nii
 
 # find the nii file in Segmentation folder
 nif_magnitude=($(find ${out_dir}/maps/Seg_temp/Nifti -iname "*.nii" -print))
@@ -61,20 +59,21 @@ echo -e "\n\n0. PERFORM BET brain extraction\n\n"
 bet2 $nif_magnitude ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet.nii -f 0.33 -g 0
 bet2 $nif_magnitude ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet -f 0.33 -g 0 -m -n
 # Run only if .nii files do not exist
-if [[ ! -f ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet_pve_0.nii && ! -f ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet_pve_1.nii && ! -f ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet_pve_2.nii ]]; then
-# segment the T1 image into 3 tissue types using FAST
-echo -e "\n\n0. PERFORM FAST segmentation\n\n"
-fast -t 1 -o ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet -n 3 ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet.nii.gz	
+if [[ ! -f ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet_pve_0.nii ]]; then
+	# segment the T1 image into 3 tissue types using FAST
+	echo -e "\n\n0. PERFORM FAST segmentation\n\n"
+	fast -t 1 -o ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet -n 3 ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet.nii.gz
+	echo -e "\n\n0. UNZIP the created files\n\n"
+	# Unzip to use for mask
+	gzip -d -f ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet_mask.nii.gz
+
+	# Unzip the segmented images
+	gzip -d -f ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet_pve_0.nii.gz
+	gzip -d -f ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet_pve_1.nii.gz
+	gzip -d -f ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet_pve_2.nii.gz
+else
+	echo -e "\n\n0. Skipping FAST segmentation - files are already here.\n\n"
 fi
-
-echo -e "\n\n0. UNZIP the created files\n\n"
-# Unzip to use for mask
-gzip -d -f ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet_mask.nii.gz	
-
-# Unzip the segmented images
-gzip -d -f ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet_pve_0.nii.gz
-gzip -d -f ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet_pve_1.nii.gz
-gzip -d -f ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet_pve_2.nii.gz
 
 echo -e "\n\n0. nii2mnc\n\n"
 # Convert nifti segmented maps into minc files
@@ -82,27 +81,29 @@ nii2mnc ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet_pve_0.nii ${out_di
 nii2mnc ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet_pve_1.nii ${out_dir}/maps/Seg_temp/magnitude_resamToCsi_bet_pve_1.mnc
 nii2mnc ${out_dir}/maps/Segmentation/magnitude_resamToCsi_bet_pve_2.nii ${out_dir}/maps/Seg_temp/magnitude_resamToCsi_bet_pve_2.mnc
 	
-##get the step size of segmented image
-#step_segmented=$(mincinfo ${out_dir}/maps/Seg_temp/magnitude_resamToCsi_bet_pve_1.mnc -attvalue xspace:step -attvalue yspace:step -attvalue zspace:step)
+#get the step size of segmented image
+step_segmented=$(mincinfo ${out_dir}/maps/Seg_temp/magnitude_resamToCsi_bet_pve_1.mnc -attvalue xspace:step -attvalue yspace:step -attvalue zspace:step)
 
-## convert into array
-#IFS=$'\n' step_segmented=($step_segmented)
+# convert into array
+IFS=$'\n' step_segmented=($step_segmented)
 
-### get the needed step size for template resampling
-#xsteplate=$(echo "scale=5; ${step_segmented[0]}*(${dimlength_magnitude[0]}/${dimlength_csi[0]})" | bc -l | xargs printf "%1.3f")
-#ysteplate=$(echo "scale=5; ${step_segmented[1]}*(${dimlength_magnitude[1]}/${dimlength_csi[1]})" | bc -l | xargs printf "%1.3f")
-#zsteplate=$(echo "scale=5; ${step_segmented[2]}*(${dimlength_magnitude[2]}/${dimlength_csi[2]})" | bc -l | xargs printf "%1.3f")
+## get the needed step size for template resampling
+xsteplate=$(echo "scale=5; ${step_segmented[0]}*(${dimlength_magnitude[0]}/${dimlength_csi[0]})" | bc -l | xargs printf "%1.3f")
+ysteplate=$(echo "scale=5; ${step_segmented[1]}*(${dimlength_magnitude[1]}/${dimlength_csi[1]})" | bc -l | xargs printf "%1.3f")
+zsteplate=$(echo "scale=5; ${step_segmented[2]}*(${dimlength_magnitude[2]}/${dimlength_csi[2]})" | bc -l | xargs printf "%1.3f")
 
-##xsteplate=$(echo "scale=5; ${step_csi[0]}" | bc -l | xargs printf "%1.3f")
-##ysteplate=$(echo "scale=5; ${step_csi[1]}" | bc -l | xargs printf "%1.3f")
-##zsteplate=$(echo "scale=5; ${step_csi[2]}" | bc -l | xargs printf "%1.3f")
+#xsteplate=$(echo "scale=5; ${step_csi[0]}" | bc -l | xargs printf "%1.3f")
+#ysteplate=$(echo "scale=5; ${step_csi[1]}" | bc -l | xargs printf "%1.3f")
+#zsteplate=$(echo "scale=5; ${step_csi[2]}" | bc -l | xargs printf "%1.3f")
 
-#echo -e "\n\n0. Create last templates\n\n"
-##mincresample -nelements ${dimlength_csi[*]} -xstep $xsteplate -ystep $ysteplate -zstep $zsteplate ${out_dir}/maps/magnitude_resamToCsi_bet_pve_0.mnc ${out_dir}/maps/template_bet_pve_0.mnc
+echo -e "\n\n0. Create last templates\n\n"
+#mincresample -nelements ${dimlength_csi[*]} -xstep $xsteplate -ystep $ysteplate -zstep $zsteplate ${out_dir}/maps/magnitude_resamToCsi_bet_pve_0.mnc ${out_dir}/maps/template_bet_pve_0.mnc
+
+#read -p "Stop before fucking up"
 
 #mincresample -nelements ${dimlength_csi[*]} -xstep $xsteplate -ystep $ysteplate -zstep $zsteplate ${out_dir}/maps/Seg_temp/magnitude_resamToCsi_bet_pve_0.mnc ${out_dir}/maps/Seg_temp/template_bet_pve_0.mnc
-#mincresample -nelements ${dimlength_csi[*]} -xstep $xsteplate -ystep $ysteplate -zstep $zsteplate ${out_dir}/maps/Seg_temp/magnitude_resamToCsi_bet_pve_1.mnc ${out_dir}/maps/Seg_temp/template_bet_pve_1.mnc
-#mincresample -nelements ${dimlength_csi[*]} -xstep $xsteplate -ystep $ysteplate -zstep $zsteplate ${out_dir}/maps/Seg_temp/magnitude_resamToCsi_bet_pve_2.mnc ${out_dir}/maps/Seg_temp/template_bet_pve_2.mnc
+mincresample -nelements ${dimlength_csi[*]} -xstep $xsteplate -ystep $ysteplate -zstep $zsteplate ${out_dir}/maps/Seg_temp/magnitude_resamToCsi_bet_pve_1.mnc ${out_dir}/maps/Seg_temp/template_bet_pve_1.mnc
+mincresample -nelements ${dimlength_csi[*]} -xstep $xsteplate -ystep $ysteplate -zstep $zsteplate ${out_dir}/maps/Seg_temp/magnitude_resamToCsi_bet_pve_2.mnc ${out_dir}/maps/Seg_temp/template_bet_pve_2.mnc
 
 
 

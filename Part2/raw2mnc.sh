@@ -1,6 +1,6 @@
 # Create Mincfiles out of raw files
 
-for maptype in 'Orig/' 'Outlier_Clip/' 'QualityAndOutlier_Clip/' 'Ratio/' 'Extra/' 'SyntheticMaps/' 'Segmentation/' ''; do
+for maptype in 'Orig/' 'Outlier_Clip/' 'QualityAndOutlier_Clip/' 'Ratio/' 'Extra/' 'SyntheticMaps/' 'Segmentation/' 'B1corr/' 'T1corr/' '' 'CorrectionMaps_B1c/' 'CorrectionMaps_T1c/'; do
 
 	if [[ ! -d ${out_dir}/maps/${maptype} ]]; then
 		continue
@@ -18,14 +18,14 @@ for maptype in 'Orig/' 'Outlier_Clip/' 'QualityAndOutlier_Clip/' 'Ratio/' 'Extra
 			if [[ $UpsampledMaps_flag -eq 1 ]]; then		# Probably dont even create the .raw file if it is never used...
 				file_name=${file%_res.raw}
 				file_name=${file_name%_zf.raw}
-				echo "Convert $filename to MINC."
+				# echo "Convert $filename to MINC."
 				rawtominc -float -clobber -like ${out_dir}/maps/csi_template_zf.mnc -input ${file} ${file_name}.mncc				#convert raw to minc
-			else
-				echo "Delete $filename."
+			# else
+				# echo "Delete $filename."
 			fi
 		else
 			file_name=${file%.raw}
-			echo "Convert $filename to MINC."
+			# echo "Convert $filename to MINC."
 			rawtominc -float -clobber -like ${out_dir}/maps/csi_template.mnc -input ${file_name}.raw ${file_name}.mnc				#convert raw to minc
 			# mincresample ${file_name}.mnc -like ${tmp_dir}/csi_template_zf.mnc ${file_name}.mncc  -tricubic -clobber			#resample to doubled resolution
 		fi

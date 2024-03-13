@@ -21,6 +21,7 @@ echo "SpectralMap_flag = ${SpectralMap_flag};" >> $Par2
 echo "UpsampledMaps_flag = ${UpsampledMaps_flag};" >> $Par2
 echo "RatioMaps_flag = ${RatioMaps_flag};" >> $Par2
 echo "local_folder = '${local_folder}';" >> $Par2
+echo "B1_correction_flag = ${B1_correction_flag};" >>$Par2
 
 # Dealing with FWHM and SNR (thresholds)
 echo "CRLB_treshold_value = ${CRLB_treshold_value};" >> $Par2

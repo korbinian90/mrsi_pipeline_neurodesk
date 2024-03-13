@@ -65,6 +65,7 @@ done
 export tmp_dir
 mkdir "$tmp_dir"
 chmod 775 "$tmp_dir"
+abs_tmp_dir=$(readlink -f "$tmp_dir")
 
 # -1.4 Write the script output to a logfile
 logfile=$tmp_dir/logfile.log
@@ -98,14 +99,17 @@ export non_lin_reg_flag=0
 export compute_reg_only_flag=0
 export segmentation_flag=0
 export compute_seg_only_flag=0
+export mask_using_CRLBs_flag=0
 export nifti_flag=0
 export SpectralMap_flag=0
 export UpsampledMaps_flag=0
 export RatioMaps_flag=0
+export T1_and_water_correction_flag=0
+export B1_correction_flag=0
 
 # INITIALIZING
 
-while getopts 'o:d:s:n:f:a:l:k:r:N:SuRwbq?' OPTION; do # DONT FORGET TO PUT GETOPS BACK IF SOME OF THE FLAGS ARE UNCOMMENTED
+while getopts 'o:d:s:n:f:a:l:k:r:N:B:SuRwbqCT?' OPTION; do # DONT FORGET TO PUT GETOPS BACK IF SOME OF THE FLAGS ARE UNCOMMENTED
 	case $OPTION in
 
 	#mandatory
@@ -114,7 +118,7 @@ while getopts 'o:d:s:n:f:a:l:k:r:N:SuRwbq?' OPTION; do # DONT FORGET TO PUT GETO
 		export out_dir="$OPTARG"
 		;;
 
-		#optional
+	#optional
 	d)
 		export compute_SNR_flag=1
 		export print_individual_spectra_flag="$OPTARG"
@@ -151,6 +155,10 @@ while getopts 'o:d:s:n:f:a:l:k:r:N:SuRwbq?' OPTION; do # DONT FORGET TO PUT GETO
 		export nifti_flag=1
 		export nifti_options="$OPTARG"
 		;;
+	B)
+		export B1_correction_flag=1
+		export B1_path="$OPTARG"
+		;;
 	S)
 		export SpectralMap_flag=1
 		;;
@@ -168,6 +176,12 @@ while getopts 'o:d:s:n:f:a:l:k:r:N:SuRwbq?' OPTION; do # DONT FORGET TO PUT GETO
 		;;
 	q)
 		export compute_seg_only_flag=1
+		;;
+	C)
+		export mask_using_CRLBs_flag=1
+		;;
+	T)
+		export T1_and_water_correction_flag=1
 		;;
 	?)
 		printf "
@@ -202,10 +216,13 @@ optional:
 -r	[non_lin_reg_type]	if this option is set, the non-linear registration is computed using minctools, Options: -r \"MNI305\", \"MNI152\"
 -w	[compute_reg_only_flag] If this option is set, only the non-linear registration is computed. 
 -q	[compute_seg_only_flag] If this option is set, only the segmentation is computed. 
+-C	[mask_using_CRLBs_flag]
 -N  [\"Nifti\" or \"Both\"] Only create nifti-files. If \"Both\" option is used, create minc and nifti. If -N option is not used, creat only mnc files.
+-B	[B1_path]		If this option is set, B1 correction is performed. Must be set in Part1 too.
 -S  [SpectralMap_flag] 		Create a nifti-file with a map of the LCModel-spectra and -fits to view with freeview as timeseries.\nNeeds freesurfer-linux-centos7_x86_64-dev-20181113-8abd50c, and MATLAB version > R2017b. Can only be used with -N option.
 -u  [UpsampledMaps_flag]	Create upsampled maps by zero-filling (in future more sophisticated methods might be implemented).
 -R  [RatioMaps_flag]		Create Ratio maps.
+-T	[T1_and_water_correction_flag] For T1 correction based on presets and WREF correction based on WREF scan in Part 1 - needs segmentation, crlb masks. Also estimates metabolite concentrations!
 
 " $(basename $0) >&2
 
@@ -257,7 +274,6 @@ echo -e "\n\n1. Install Program\n\n"
 #	mkdir -p ${out_dir}
 #fi
 
-rm -rf "$out_dir/maps/"*/ # Remove all subfolders, and recreate them.
 rm -f "$out_dir/maps/magnitude"*.nii
 rm -f "$out_dir/maps/csi_template"*.nii
 rm -f "$out_dir/maps/mask"*.nii
@@ -268,76 +284,10 @@ mkdir "$out_dir/maps/QualityAndOutlier_Clip"
 mkdir "$out_dir/maps/Outlier_Clip"
 mkdir "$out_dir/maps/Ratio"
 mkdir "$out_dir/maps/Extra"
-
-#############################################################################################################################
-## Run non-linear registration only
-#if [[ $compute_reg_only_flag -eq 1 ]]; then
-#	echo -e "\n\n0. PERFORM NON LINEAR REGISTRATION TO $non_lin_reg_type ATLAS\n\n"
-#	./coregistration.sh
-#	exit 0
-#fi
-
-#############################################################################################################################
-
-## Run Tissue segmentation only
-#if [[ $compute_seg_only_flag -eq 1 ]]; then
-#	echo -e "\n\n2. READ CSI PARAMETERS AND I/O FOLDERS\n\n"
-#	./write_parameter2.sh
-
-#	echo -e "\n\n4. CREATE TISSUE CONTRIBUTION IMAGES OUT OF T1 IMAGE \n\n"
-#	./segmentation.sh
-
-#	${matlabp} -r "tmp_dir = '${tmp_dir}'; addpath(genpath('${MatlabFunctionsFolder}'))" -nodisplay < segmentation_simple.m
-#	./raw2mnc_seg.sh
-
-#	############ WRITE THE SOURCECODE THAT WAS USED TO OUT-DIR ############
-#	echo -e "\n\n7. WRITE THE USED SOURCECODE TO out-dir.\n\n"
-
-#	# Copy Program where this program lies in
-#	curdir=$(pwd)
-#	curdir_folder=${curdir##*/}
-#	mkdir -p "$local_folder/UsedSourcecode/$curdir_folder"
-#	rsync -a --skip-compress="*" $curdir/* $local_folder/UsedSourcecode/$curdir_folder --exclude .git --exclude ${tmp_dir}
-#	#rm -R $out_dir/UsedSourcecode/$curdir_folder/${tmp_dir}
-
-#	# Copy Matlab Functions
-#	rsync -a --skip-compress="*" $MatlabFunctionsFolder $local_folder/UsedSourcecode --exclude .git
-
-#	## Copy the Run-files one level above the program
-#	#abovecurdir=${curdir%/*}	# Delete the thing that follows the last /
-#	#cp $abovecurdir/Run*.sh $out_dir/UsedSourcecode
-
-#	# Copy the logfile
-#	cp $logfile $local_folder/UsedSourcecode
-
-#	# Copy the Parameter2.m file
-#	cp ${tmp_dir}/Parameter2.m $local_folder/UsedSourcecode/Parameter2.m
-#	# Remove all backup-files
-#	find $local_folder/UsedSourcecode -name \*.*~ -type f -delete
-#	# Zip the folder
-#	if [ -e $out_dir/UsedSourcecode_Part2.zip ]; then
-#		rm $out_dir/UsedSourcecode_Part2.zip
-#	fi
-#	cd $local_folder/UsedSourcecode
-#	zip -q -r $local_folder/UsedSourcecode_Part2.zip ./
-#	# Go back to the original folder
-#	cd $curdir
-#	# Delete the unzipped stuff
-#	rm -R -f $local_folder/UsedSourcecode
-#	if [[ ! "$local_folder" == "$out_dir" ]]; then
-#		cp $local_folder/UsedSourcecode_Part2.zip $out_dir/UsedSourcecode_Part2.zip
-#	fi
-
-#	echo -e "\n\n12. REMOVE Seg_temp FOLDER.\n\n"
-#
-#	rm -R -f ${out_dir}/maps/Seg_temp
-#		exit 0
-#fi
-
 #1.
 ############ Uncompress the CoordFiles ##############
 if ! [[ $compute_reg_only_flag -eq 1 || $compute_seg_only_flag -eq 1 ]]; then # Run only if the whole script is run
-	echo -e "\n\ Uncompress the coord files\n\n"
+	echo -e "\n\nUncompress the coord files\n\n"
 	if [ ! -d "$local_folder/spectra/CoordFiles" ]; then
 		if [ -e "$out_dir/CoordFiles.tar.gz" ]; then
 			printf "\nUncompress Coordfiles ... "
@@ -364,11 +314,27 @@ fi
 echo -e "\n\n2. READ CSI PARAMETERS AND I/O FOLDERS\n\n"
 ./write_parameter2.sh
 
+#3.
+############ CREATE TISSUE CONTRIBUTION IMAGES OUT OF T1 IMAGE ############
+if [[ $segmentation_flag -eq 1 ]]; then
+	echo -e "\n\n3. CREATE TISSUE CONTRIBUTION IMAGES OUT OF T1 IMAGE \n\n" #### WAS SECTION 7 UNTIL 2021-10-18
+	rm -rf "$out_dir/maps/Seg_temp" 2>/dev/null
+	rm -r "$out_dir/maps/Segmentation/"*.mnc 2>/dev/null
+	mkdir -p "$out_dir"/maps/Segmentation "$out_dir"/maps/Seg_temp "$out_dir"/maps/Seg_temp/Nifti
+
+	./segmentation.sh
+	# ./synthseg.sh 			# Using SynthSeg from FreeSurfer 7.4.1
+
+	$Matlab_Compiled/segmentation_simple "$abs_tmp_dir"
+	echo -e "\n\n4. DEBUG -convert templates \n\n"
+	./raw2mnc_seg.sh # PROBLEM
+	echo -e "\n\n4. DEBUG -end of convert templates \n\n"
+fi
+
 # read -rp "Stop before extract_met_maps"
 
-#3.
+#4.
 ############ READ LCMODEL RESULTS AND STORE THEM INTO *.raw FILES ############
-abs_tmp_dir=$(readlink -f "$tmp_dir")
 if ! [[ $compute_reg_only_flag -eq 1 || $compute_seg_only_flag -eq 1 ]]; then # Run only if the whole script is run
 	echo -e "\n\n4. READ LCMODEL RESULTS AND STORE THEM INTO *.raw!\n\n"
 	if [ -d "$out_dir/water_spectra" ]; then
@@ -378,23 +344,11 @@ if ! [[ $compute_reg_only_flag -eq 1 || $compute_seg_only_flag -eq 1 ]]; then # 
 	$Matlab_Compiled/extract_met_maps "$abs_tmp_dir"
 fi
 
-##4.
-############# CREATE TISSUE CONTRIBUTION IMAGES OUT OF T1 IMAGE ############
-#if [[ $segmentation_flag -eq 1 ]]; then
-#	echo -e "\n\n4. CREATE TISSUE CONTRIBUTION IMAGES OUT OF T1 IMAGE \n\n"
-#	./partial_volume.sh
-
-#	${matlabp} -r "tmp_dir = '${tmp_dir}'; addpath(genpath('${MatlabFunctionsFolder}'))" -nodisplay < tissue_vol_contrib.m
-
-#fi
-
-# read -rp "Stop after extract_met_maps"
-
 #5.
 ############ READ *.coord FILES and create "stacks of spectra" for each slice ############
 if ! [[ $compute_reg_only_flag -eq 1 || $compute_seg_only_flag -eq 1 ]]; then # Run only if the whole script is run
 	if [[ $spectra_stack_flag -eq 1 ]]; then
-		echo -e "\n\n8. READ *.coord FILES AND DISPLAY STACK OF SPECTRA IN *.eps!\n\n"
+		echo -e "\n\n5. READ *.coord FILES AND DISPLAY STACK OF SPECTRA IN *.eps!\n\n"
 		mkdir -p "$out_dir/figures"
 		$Matlab_Compiled/extract_spectra "$abs_tmp_dir"
 	fi
@@ -409,34 +363,32 @@ fi
 # read -rp "Stop After raw2mnc.sh"
 
 #7.
-############ CREATE TISSUE CONTRIBUTION IMAGES OUT OF T1 IMAGE ############
-if [[ $segmentation_flag -eq 1 ]]; then
-	echo -e "\n\n4. CREATE TISSUE CONTRIBUTION IMAGES OUT OF T1 IMAGE \n\n"
-	mkdir "$out_dir/maps/Segmentation"
-	mkdir "$out_dir/maps/Seg_temp"
-	mkdir "$out_dir/maps/Seg_temp/Nifti"
-
-	./segmentation.sh
-	# read -rp "Stop before segmentation simple"
-	$Matlab_Compiled/segmentation_simple "$abs_tmp_dir"
-	echo -e "\n\n4. DEBUG -convert templates \n\n"
-	./raw2mnc_seg.sh
-	echo -e "\n\n4. DEBUG -end of convert templates \n\n"
-fi
-
-# read -rp "Stop after segmentation simple"
-# TODO N3 not working
-############ PERFORM N3 INTENSITY CORRECTION OF MAGNITUDE.MNC ############
-#if [[ $non_lin_reg_flag -eq 1 ]]; then
-#	echo -e "\n\n9. PERFORM N3 INTENSITY CORRECTION OF MAGNITUDE.MNC\n\n"
-#
-#fi
-
-#8.
 ############ PERFORM NON LINEAR REGISTRATION TO 305 MNI BRAIN ############
 if [[ $non_lin_reg_flag -eq 1 ]]; then
-	echo -e "\n\n9. PERFORM NON LINEAR REGISTRATION TO $non_lin_reg_type ATLAS\n\n"
+	echo -e "\n\n7. PERFORM NON LINEAR REGISTRATION TO $non_lin_reg_type ATLAS\n\n"
 	./coregistration.sh
+fi
+
+# read -rp "Stop before CRLB masking"
+#8.
+############ PERFORM SEGMENTATION AND MASKING with CRLBs ############
+if [[ $mask_using_CRLBs_flag -eq 1 ]]; then
+	echo -e "\n\n8.A Generate masked mnc files.\n\n"
+	./GH_MRSI_automatic_map_masking_with_CRLBS_v10.sh
+fi
+
+
+#9.
+############ PERFORM T1, B1 correction and water referencing ############
+if [[ $T1_and_water_correction_flag -eq 1 ]]; then
+
+	if [[ $mask_using_CRLBs_flag -eq 1 ]]; then
+		echo -e "\n\n9. T1 correction, B1 correction and water referencing. \n\n"
+		./GH_T1_WREF_weighting_v2.sh
+	else
+		echo -e "\n\n9.Please set -C to enable T1/B1 and water reference corrections! Do not forget to enable the segmentation flag too!\n\n"
+	fi
+
 fi
 
 # DELETE RATIO MAPS, IF THEY ARE NOT DEMANDED
@@ -455,7 +407,7 @@ if [[ $nifti_flag -eq 1 ]]; then
 fi
 
 # Create Spectrum-Nifti files (Nifti-files with the spectrum and Fit as time-courses)
-read -rp "Stop Before creating SpectralMap."
+# read -rp "Stop Before creating SpectralMap."
 echo -e "\n\nCreate Spectral NiftiMap.\n\n"
 if [[ $SpectralMap_flag -eq 1 ]]; then
 	$Matlab_Compiled/CreateSpectralNiftiMap "$abs_tmp_dir"
@@ -463,7 +415,7 @@ fi
 
 # 7.
 ############ WRITE THE SOURCECODE THAT WAS USED TO OUT-DIR ############
-echo -e "\n\n7. WRITE THE USED SOURCECODE TO out-dir.\n\n"
+echo -e "\n\nWRITE THE USED SOURCECODE TO out-dir.\n\n"
 
 # # Copy Program where this program lies in
 # curdir=$(pwd)
@@ -507,7 +459,7 @@ echo -e "\n\n7. WRITE THE USED SOURCECODE TO out-dir.\n\n"
 
 #8. Compress the SNR_Computations/failed and /succeeded folders
 if [[ $compute_SNR_flag -eq 1 ]]; then
-	echo -e "\n\n8. COMPRESS THE SNR COMPUTATION OUTPUT.\n\n"
+	echo -e "\n\nCOMPRESS THE SNR COMPUTATION OUTPUT.\n\n"
 	# jump to the folder
 	cd "$out_dir/SNR_Computations" || exit
 	# Compress it
@@ -520,7 +472,7 @@ fi
 
 #9. Compress the CoordFiles
 if [ -d "$local_folder/spectra/CoordFiles" ]; then
-	echo -e "\n\n9. COMPRESS THE CoordFiles.\n\n"
+	echo -e "\n\nCOMPRESS THE CoordFiles.\n\n"
 	# jump to the folder
 	cd "$local_folder/spectra" || exit
 	# Compress it
@@ -534,7 +486,7 @@ if [ -d "$local_folder/spectra/CoordFiles" ]; then
 	cd "$curdir" || exit
 fi
 
-echo -e "\n\n10. REMOVE Seg_temp FOLDER.\n\n"
+echo -e "\n\nREMOVE Seg_temp FOLDER.\n\n"
 
 rm -R -f "$out_dir/maps/Seg_temp"
 

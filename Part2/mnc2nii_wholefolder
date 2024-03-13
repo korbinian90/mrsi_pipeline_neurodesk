@@ -89,7 +89,7 @@ MincFiles2=$(find ${in_dir} -type f -name "*.mncc")
 MincFiles="${MincFiles} ${MincFiles2}"
 for file in $MincFiles; do
 	FileOnly=$(basename $file)
-	echo -ne "\nConverting $FileOnly to nii ..."
+	# echo -ne "\nConverting $FileOnly to nii ..."
 	FileIsMncc=$(echo $FileOnly | grep -c ".mncc")
 
 	if [[ "$FileIsMncc" == "0" ]]; then
@@ -110,7 +110,7 @@ for file in $MincFiles; do
 			fi
 		done
 		if [[ "$DontDelete_flag" == "0" ]]; then
-			echo -ne " deleting mnc ..."
+			# echo -ne " deleting mnc ..."
 			rm $file
 		fi
 	fi

@@ -35,6 +35,7 @@
 
 
 # Required here because dcm2mnc only takes relative paths
+part1_path=$(pwd)
 cd "${tmp_dir}" || exit
 tmp_dir="."
 
@@ -69,6 +70,10 @@ fi
 cp ./${tmp_dir}/magnitude.mnc ${out_path}/maps/magnitude.mnc
 
 
+##### Create B1 minc
+if [[ $B1corr_flag -eq 1 ]]; then
+	"${part1_path}/B1_preparations.sh"
+fi
 
 #read -p "Stop before creating mask2."
 
