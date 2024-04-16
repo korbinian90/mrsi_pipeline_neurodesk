@@ -34,13 +34,13 @@ TerminateProgram() {
 		read -rp "Remove $tmp_dir? [y][n]      " rmtmpdir
 	fi
 	if [[ "$rmtmpdir" == "y" ]] && [[ -n "$tmp_dir" ]]; then
-		rm -R -f "$(dirname "${BASH_SOURCE[0]}")/$tmp_dir"
+		rm -R -f "$abs_tmp_dir"
 		if [[ ! "$local_folder" == "$out_dir" ]]; then
 			rm -R -f "$local_folder"
 		fi
-		if [ -d "$(dirname "${BASH_SOURCE[0]}")/$tmp_dir" ]; then
+		if [ -d "$abs_tmp_dir" ]; then
 			sleep 10
-			rm -R -f "$(dirname "${BASH_SOURCE[0]}")/$tmp_dir" # Try again if it didnt work
+			rm -R -f "$abs_tmp_dir" # Try again if it didnt work
 		fi
 	fi
 	echo "Stop now."
