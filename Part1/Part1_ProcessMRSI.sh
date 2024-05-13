@@ -418,6 +418,46 @@ if [[ $dont_compute_LCM_flag -eq 0 ]]; then
 	sleep 10
 fi
 
+# 8.
+############ WRITE THE SOURCECODE THAT WAS USED TO OUT-DIR ############
+echo -e "\n\n8. Write the used sourcecode to out-dir.\n\n"
+
+# Copy Program where this program lies in
+curdir=$(pwd)
+ScriptName=$(basename "$curdir")
+curlogname=$(basename "$logfile")
+BaseNameMatlabFunctions=$(basename "$MatlabFunctionsFolder")
+
+# Archive this script itself
+cd ..
+tar cf "$out_path/UsedSourcecode_Part1.tar" "$ScriptName" --transform='s,^,/UsedSourcecode/,' --exclude='*/tmp*'
+
+# Copy the logfile
+cp "$logfile" "$out_path/logfile_part1.log"
+
+# Copy MeasurementInfos
+cp "$tmp_dir/MeasurementInfos.txt" "$out_path"
+
+# Archive the logfile
+cd "$tmp_dir" || exit
+tar f "$out_path/UsedSourcecode_Part1.tar" -r "$curlogname"
+
+# Archive the Matlab functions
+if ! [[ "$curdir/$BaseNameMatlabFunctions" == "$MatlabFunctionsFolder" ]]; then
+    cd "$MatlabFunctionsFolder" || exit
+    cd ..
+    tar f "$out_path/UsedSourcecode_Part1.tar" -r "$BaseNameMatlabFunctions" --transform='s,^,/UsedSourcecode/,'
+fi
+
+# zip everything
+gzip "$out_path/UsedSourcecode_Part1.tar"
+
+# Go back to the original folder
+cd "$curdir" || exit
+
+# Copy measurement information to out_path (see read_csi_dat_new_v2.m)
+cp "$tmp_dir/"*.txt "$out_path"
+
 #8a: GH: finish time measurement
 END=$(date +%s.%N)
 DIFF=$(echo "$END - $START" | bc)
