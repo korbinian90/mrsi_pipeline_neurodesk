@@ -134,7 +134,7 @@ export dataconversion="00"
 
 # INITIALIZING
 # These letters must stay in sync with the options, ":" only for options that consume an argument
-while getopts 'o:a:B:d:e:f:k:l:n:N:r:s:S:t:bcCqRTuwx?' OPTION; do
+while getopts 'o:a:B:d:e:f:k:l:n:N:r:s:S:t:bCKqRTuwx?' OPTION; do
 	case $OPTION in
 
 	#mandatory
@@ -197,14 +197,15 @@ while getopts 'o:a:B:d:e:f:k:l:n:N:r:s:S:t:bcCqRTuwx?' OPTION; do
 		export T1w_path="$OPTARG"
 		;;
 
+	#flags
 	b)
 		export segmentation_flag=1
 		;;
-	c)
-		export compiled_matlab_flag=1
-		;;
 	C)
 		export mask_using_CRLBs_flag=1
+		;;
+	K)
+		export compiled_matlab_flag=1
 		;;
 	q)
 		export compute_seg_only_flag=1
@@ -288,6 +289,8 @@ optional:
 Flags:
 -b	Perform segmentation to GM, WM and CSF using bet. (If synthsegp is set, outputs synthseg as well)
 -C	Mask using CRLBs.
+-K	Use compiled MATLAB functions.
+		No MATLAB license needed, but the functions must be compiled first (See compile.m)
 -q	Compute Segmentation only.
 -R	Create Ratio Maps.
 -T	T1 and Water Correction.
