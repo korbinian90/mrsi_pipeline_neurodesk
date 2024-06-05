@@ -382,6 +382,12 @@ if ! [[ $compute_reg_only_flag -eq 1 || $compute_seg_only_flag -eq 1 ]]; then # 
 			cp -R "${out_dir}/spectra/CoordFiles" "${local_folder}/spectra/CoordFiles"
 		fi
 	fi
+	if [ -d "${out_dir}/Compressed_Spectra" ]; then
+		"${curdir}/Bash_Functions/DataCompression/data_decompression.sh" -s 1 -o "$out_dir"
+	fi
+	if [ -d "${out_dir}/Compressed_Water_Spectra" ]; then
+		"${curdir}/Bash_Functions/DataCompression/data_decompression.sh" -w 1 -o "$out_dir"
+	fi
 fi
 
 #2.
