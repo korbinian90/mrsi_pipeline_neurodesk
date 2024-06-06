@@ -69,11 +69,12 @@ calldir=$(pwd)
 cd "$(dirname "${BASH_SOURCE[0]}")" || exit
 
 # -1.3 Create directories
+tmp_trunk="tmp"
 tmp_num=1
-tmp_dir="${tmp_trunk}${tmp_num}"
+tmp_dir="${tmp_folder}/${tmp_trunk}${tmp_num}"
 while [ -d "$tmp_dir" ]; do
 	((tmp_num = tmp_num + 1))
-	tmp_dir="${tmp_trunk}${tmp_num}"
+    tmp_dir="${tmp_folder}/${tmp_trunk}${tmp_num}"
 done
 export tmp_dir
 mkdir "$tmp_dir"

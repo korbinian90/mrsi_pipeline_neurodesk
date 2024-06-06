@@ -21,8 +21,8 @@ echo -e "out path: $out_path"
 sleep 0.5
 
 echo -e "\nremoving stuff..."
-rm ${tmp_dir}/B1map*
-rm ${out_path}/maps/Extra/B1map*
+[ -f "${tmp_dir}/B1map*" ] && rm -f "${tmp_dir}/B1map*"
+[ -f "${out_path}/maps/Extra/B1map*" ] && rm -f "${out_path}/maps/Extra/B1map*"
 sleep 0.5
 
 ##### Create B1 minc
@@ -33,7 +33,7 @@ echo -e "\ndcm2mnc..."
 
 dcm2mnc $B1_path ${tmp_dir}/mnc 
 mv ${tmp_dir}/mnc/*/* ${tmp_dir}/B1map_orig.mnc
-rm -r ${tmp_dir}/mnc
+[ -d "${tmp_dir}/mnc" ] && rm -rf "${tmp_dir}/mnc"
 
 # cp ${tmp_dir}/B1.mnc ${out_path}/maps/Extra/B1.mnc
 

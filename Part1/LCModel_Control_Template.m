@@ -14,7 +14,7 @@ ControlWrite.N1HMET = 'N1HMET = 9';                              % The number of
 
 
 % Plotting Parameters
-ControlWrite.SUBBAS =  'SUBBAS = T';                             % Subtracts the baseline from the spectra
+ControlWrite.SUBBAS =  'SUBBAS = F';                             % Subtracts the baseline from the spectra
 ControlWrite.NEACH =  'NEACH = 99';                              % "the number of metabolites for which individual plots are to be made." (LCM Manual p. 118)
 ControlWrite.WDLINE =  {'WDLINE(6) = 0.1'};                        % Set the fine grid lines to thickness = 0. 
 
@@ -52,8 +52,8 @@ ControlWrite.SDDEGP = 'SDDEGP = 999';                             % standard dev
 % Basis Set Parameters
 ControlWrite.NSIMUL = 'NSIMUL = 0';                              % Don't Simulate additional Basis-spectra that are not in the Basis Set
 
-ControlWrite.NOMIT =  'NOMIT = 6';                               % Number of Metabolites within the Basis Set that should be omitted from the analysis
-ControlWrite.CHOMIT =  {'CHOMIT(1) = ''Cho''','CHOMIT(2) = ''Act''','CHOMIT(3) = ''mm3''','CHOMIT(4) = ''mm4''','CHOMIT(5) = ''Glc_B''','CHOMIT(6) = ''Ala'''}; % Names of omitted metabolites
+ControlWrite.NOMIT =  'NOMIT = 5';                               % Number of Metabolites within the Basis Set that should be omitted from the analysis
+ControlWrite.CHOMIT =  {'CHOMIT(1) = ''Cho''','CHOMIT(2) = ''Act''','CHOMIT(3) = ''mm3''','CHOMIT(4) = ''mm4''','CHOMIT(5) = ''Glc_B''',}; % Names of omitted metabolites
 
 % ControlWrite.NUSE =  'NUSE = 2'; 
 % ControlWrite.CHUSE1 = {'CHUSE(1)=''Act''', 'CHUSE(2)=''Lac'''};% Only Use the following metabolites in the Preliminary Analysis.
@@ -64,7 +64,7 @@ ControlWrite.CHKEEP =  {'CHKEEP(1) = ''Lac'''};
 
 % This is a little bit of a hack, since it has in principle nothing to do in this file
 % But it works!
-CPU_cores = 8;
+CPU_cores = 20;
 
 
 

@@ -25,8 +25,8 @@ ControlWrite.WDLINE =  {'WDLINE(6) = 0.0'};                        % Set the fin
 
 
 % Analysis Window
-ControlWrite.PPMST = 'PPMST = 5.2';                              % Fit data in chemical shift region [PPMEND, PPMST], PPMST > PPMEND
-ControlWrite.PPMEND = 'PPMEND = 4.2';
+ControlWrite.PPMST = 'PPMST = 9.0';                              % Fit data in chemical shift region [PPMEND, PPMST], PPMST > PPMEND
+ControlWrite.PPMEND = 'PPMEND = -1';
 %ControlWrite.PPMGAP = {'PPMGAP(1,1) = 5.1','PPMGAP(2,1) = 4.2'};
 
 
