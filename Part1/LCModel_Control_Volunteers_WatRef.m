@@ -25,8 +25,8 @@ ControlWrite.WDLINE =  {'WDLINE(6) = 0.0'};                        % Set the fin
 
 
 % Analysis Window
-ControlWrite.PPMST = 'PPMST = 9.0';                              % Fit data in chemical shift region [PPMEND, PPMST], PPMST > PPMEND
-ControlWrite.PPMEND = 'PPMEND = -1';
+ControlWrite.PPMST = 'PPMST = 5.2';                              % Fit data in chemical shift region [PPMEND, PPMST], PPMST > PPMEND
+ControlWrite.PPMEND = 'PPMEND = 4.2';
 %ControlWrite.PPMGAP = {'PPMGAP(1,1) = 5.1','PPMGAP(2,1) = 4.2'};
 
 
@@ -71,7 +71,8 @@ ControlWrite.CHOMIT =  {'CHOMIT(1) = ''Lip13a''','CHOMIT(2) = ''Lip13b''','CHOMI
 
 % This is a little bit of a hack, since it has in principle nothing to do in this file
 % But it works!
-CPU_cores = 9;
+CPU_cores = 0; % uses all cores
+progessbar = 0;
 
 
 
