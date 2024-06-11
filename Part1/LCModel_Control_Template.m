@@ -64,7 +64,8 @@ ControlWrite.CHKEEP =  {'CHKEEP(1) = ''Lac'''};
 
 % This is a little bit of a hack, since it has in principle nothing to do in this file
 % But it works!
-CPU_cores = 20;
+CPU_cores = 0; % uses all cores
+progessbar = 0;
 
 
 

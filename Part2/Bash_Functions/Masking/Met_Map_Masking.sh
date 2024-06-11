@@ -79,7 +79,7 @@ fi
 
 ##### Begin script! #####
 
-cd ${out_dir}/maps/	
+cd "${out_dir}/maps/" || exit 1
 # rm -rf CRLB_Masked Cr_Masked Met_Maps_Cr_O_masked Ratio_Maps_Cr_O_masked Met_Maps_masked Ratio_Maps_masked Extra_Maps_masked Met_Maps_Outlier_masked Met_Maps_Q_O_masked NAA_based_mask Met_Maps_NAA_masked Met_Maps_Outlier_NAA_masked Met_Maps_Q_O_NAA_masked Met_Maps_double_masked Masks Met_Maps_SNR_FWHM_CRLB_OC-${stddev_multiplier}xSD Ratio_Maps_SNR_FWHM_CRLB_OC-${stddev_multiplier}xSD Ratio_New
 mkdir -p Masks {Met,Ratio}_Maps_SNR_FWHM_CRLB{,_OC-${stddev_multiplier}xSD} Ratio_New
 
@@ -120,34 +120,31 @@ mincmath -clobber -quiet -mult 					Masks/mask_NAA_SNR-gt-${SNR_limit}.mnc 		Mas
 
 echo -e "Create CRLB masks (CRLB <${CRLB_limit}%)."
 [ $debug == 1 ] && read -p "Proceed?"
-for f in Orig/*.mnc; do
+for f in Orig/*_amp_map.mnc; do
 		file_name=$(basename "$f")
-	        ext="${f##*.}"
-		met=$(basename "$f" | cut -d '_' -f 1)
-		[ ${met} == "MM" ] && met="MM_mea" # Exception for MM_mea
-
-		if [[ "$f" =~ "_sd_" ]]; then
-			mincmath -clobber -quiet -segment -const2 0 ${CRLB_limit} Orig/${met}_sd_map.mnc Masks/mask_CRLB-lt-${CRLB_limit}_${met}_tmp.mnc 	
-			mincmath -clobber -quiet -mult Masks/mask_CRLB-lt-${CRLB_limit}_${met}_tmp.mnc  mask.mnc Masks/mask_CRLB-lt-${CRLB_limit}_${met}.mnc &
-	        fi
+		met="${file_name%_amp_map.mnc}"
+		
+		mincmath -clobber -quiet -segment -const2 0 ${CRLB_limit} Orig/${met}_sd_map.mnc Masks/mask_CRLB-lt-${CRLB_limit}_${met}_tmp.mnc 	
+		mincmath -clobber -quiet -mult Masks/mask_CRLB-lt-${CRLB_limit}_${met}_tmp.mnc  mask.mnc Masks/mask_CRLB-lt-${CRLB_limit}_${met}.mnc &
 done
 wait
 
 echo -e "Combine Cr SNR mask, FWHM mask and metabolite-specific CRLB mask."
 [ $debug == 1 ] && read -p "Proceed?"
 for f in Orig/*_amp_map.mnc; do
-		met=$(basename "$f" | cut -d '_' -f 1)
-		[ ${met} == "MM" ] && met="MM_mea" # Exception for MM_mea
+		# use regexp to find the metabolite name (name of the * in the Orig/*_amp_map.mnc)
+		file_name=$(basename "$f")
+		met="${file_name%_amp_map.mnc}"
+		
 		mincmath -clobber -quiet -mult Masks/mask_CRLB-lt-${CRLB_limit}_${met}.mnc Masks/mask_Cr_SNR-gt-${SNR_limit}_FWHM-lt-${FWHM_limit}.mnc Masks/mask_CRLB_FWHM_SNR_${met}.mnc &
-				
 done
 wait
 
 echo -e "Apply combined Cr SNR mask, FWHM mask, met-CRLB masks, a brain mask and an outlier filter to Origs."
 [ $debug == 1 ] && read -p "Proceed?"
 for f in Orig/*_amp_map.mnc; do
-		met=$(basename "$f" | cut -d '_' -f 1)
-		[ ${met} == "MM" ] && met="MM_mea" # Exception for MM_mea
+		file_name=$(basename "$f")
+		met="${file_name%_amp_map.mnc}"
 		
 		mincmath -clobber -quiet -mult Orig/${met}_amp_map.mnc 			Masks/mask_CRLB_FWHM_SNR_${met}.mnc  	Met_Maps_SNR_FWHM_CRLB/${met}_amp_map.mnc		
 
@@ -164,8 +161,8 @@ echo -e "Creating Ratio_New."
 for denom in NAA+NAAG Cr+PCr; do
 	echo -e "Ratios to ${denom}"
 		for f in Orig/*_amp_map.mnc; do
-		met=$(basename "$f" | cut -d '_' -f 1)
-		[ ${met} == "MM" ] && met="MM_mea" # Exception for MM_mea
+		file_name=$(basename "$f")
+		met="${file_name%_amp_map.mnc}"
 		[ ${met} == ${denom} ] && continue  	 	
 		
 		mincmath -clobber -quiet -div Met_Maps_SNR_FWHM_CRLB_OC-${stddev_multiplier}xSD/${met}_amp_map.mnc Met_Maps_SNR_FWHM_CRLB_OC-${stddev_multiplier}xSD/${denom}_amp_map.mnc Ratio_New/${met}_RatTo${denom}_map.mnc &
@@ -178,8 +175,8 @@ echo -e "Apply combined Cr SNR mask, FWHM mask, met-CRLB masks, a brain mask and
 for denom in NAA+NAAG Cr+PCr; do
 	echo -e "Ratios to ${denom}"	
 	for f in Ratio_New/*_RatToCr+PCr_map.mnc; do
-		met=$(basename "$f" | cut -d '_' -f 1)
-		[ ${met} == "MM" ] && met="MM_mea"	# Exception for MM_mea
+		file_name=$(basename "$f")
+		met="${file_name%_RatToCr+PCr_map.mnc}"
 		[ ${met} == ${denom} ] && continue  	 	
 		
 		mincmath -clobber -quiet -mult Ratio_New/${met}_RatTo${denom}_map.mnc 				Masks/mask_CRLB_FWHM_SNR_${met}.mnc  	Ratio_Maps_SNR_FWHM_CRLB/${met}_RatTo${denom}_map_tmp.mnc	# Enumerator CRLB mask
