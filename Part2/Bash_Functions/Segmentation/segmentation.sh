@@ -33,14 +33,13 @@ IFS=$'\n' step_magnitude=($step_magnitude)
 # get the needed step size for csi resampling
 xstep_csiToT1=$(echo "scale=5; ${step_csi[0]}/(${dimlength_magnitude[0]}/${dimlength_csi[0]})" | bc -l | xargs printf "%1.3f")
 ystep_csiToT1=$(echo "scale=5; ${step_csi[1]}/(${dimlength_magnitude[1]}/${dimlength_csi[1]})" | bc -l | xargs printf "%1.3f")
-zstep_T1=$(echo "scale=5; ${step_magnitude[2]}" | bc -l | xargs printf "%1.3f")
-#zstep_csiToT1=$(echo "scale=5; ${step_csi[2]}/(${dimlength_magnitude[2]}/${dimlength_csi[2]})" | bc -l | xargs printf "%1.3f")
+zstep_csiToT1=$(echo "scale=5; ${step_csi[2]}/(${dimlength_magnitude[2]}/${dimlength_csi[2]})" | bc -l | xargs printf "%1.3f")
 
 ## mincresample csilate to T1 resolution
-mincresample -clobber -nelements ${dimlength_magnitude[*]} -xstep "$xstep_csiToT1" -ystep "$ystep_csiToT1" -zstep "$zstep_T1" "$csilate" "${out_dir}/maps/Seg_temp/Csi_resamToT1.mnc"
+mincresample -clobber -nelements ${dimlength_magnitude[*]} -xstep "$xstep_csiToT1" -ystep "$ystep_csiToT1" -zstep "$zstep_csiToT1" "$csilate" "${out_dir}/maps/Seg_temp/Csi_resamToT1.mnc"
 
 # Apply direction cosines of MRSI on T1 dataset
-echo "mincresample -clobber -xdircos ${dircos_csi[0]} -ydircos ${dircos_csi[1]} -zdircos ${dircos_csi[2]} ${out_dir}/maps/magnitude.mnc ${out_dir}/maps/Seg_temp/magnitude_resamToCsi.mnc" >"${out_dir}/maps/Seg_temp/resampleT1toCSI.txt"
+echo "mincresample -clobber -like ${out_dir}/maps/Seg_temp/Csi_resamToT1.mnc -xdircos ${dircos_csi[0]} -ydircos ${dircos_csi[1]} -zdircos ${dircos_csi[2]} ${out_dir}/maps/magnitude.mnc ${out_dir}/maps/Seg_temp/magnitude_resamToCsi.mnc" >"${out_dir}/maps/Seg_temp/resampleT1toCSI.txt"
 bash "${out_dir}/maps/Seg_temp/resampleT1toCSI.txt"
 
 # convert mnc T1 image (resampled) into nifti image
