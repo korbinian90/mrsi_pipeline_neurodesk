@@ -197,7 +197,7 @@ while getopts 'o:a:B:d:e:f:k:l:n:N:r:s:S:t:bCKqRTuwx?' OPTION; do
         export T1w_flag=1
         export T1w_path="$OPTARG"
         ;;
-        
+
     #flags
     b)
         export segmentation_flag=1
@@ -368,26 +368,27 @@ mkdir -p "${out_dir}/maps/Extra"
 #1.
 ############ Uncompress CoordFiles and Spectral Files ##############
 if ! [[ $compute_reg_only_flag -eq 1 || $compute_seg_only_flag -eq 1 ]]; then # Run only if the whole script is run
-    echo -e "\n\n1. Uncompress the CoordFiles and Spectral files\n"	
+    echo -e "\n\n1. Uncompress the CoordFiles and Spectral files\n"
 
     for target in "spectra" "water_spectra"; do
-        
-        # If folder is empty
-        if [[ ! -d "${local_folder}/${target}" || ! "$(ls -A "${local_folder}/${target}")" ]]; then
-            
-            if [[ -f "${out_dir}/${target}.tar.gz" ]]; then # compressed spectra available
-                if [[ "$local_folder" != "$out_dir" ]]; then
-                    cp "${out_dir}/${target}.tar.gz" "${local_folder}/${target}.tar.gz"
-                fi
 
+        if [[ -f "${out_dir}/${target}.tar.gz" ]]; then # compressed spectra available
+
+            target_count=$(find "${local_folder}/${target}" | wc -l)
+            archive_count=$(tar -tzf "${out_dir}/${target}.tar.gz" | wc -l)
+
+            if [[ ${target_count} -lt ${archive_count} ]]; then
                 mkdir -p "${local_folder}/${target}"
-                tar xf "${local_folder}/${target}.tar.gz" -C "${local_folder}/${target}" --strip-components=1
-            
-            else # spectra available in out_dir
-                if [[ -d "${out_dir}/${target}" ]]; then
-                    if [[ "$local_folder" != "$out_dir" ]]; then
-                        cp -r "${out_dir}/${target}" "${local_folder}/${target}"
-                    fi
+                tar xf "${out_dir}/${target}.tar.gz" -C "${local_folder}/${target}" --strip-components=1
+            else
+                echo -e "\n Already uncompressed"
+            fi
+
+        else # spectra available in out_dir
+
+            if [[ -d "${out_dir}/${target}" ]]; then
+                if [[ "$local_folder" != "$out_dir" ]]; then
+                    cp -r "${out_dir}/${target}" "${local_folder}/${target}"
                 fi
             fi
 
@@ -466,7 +467,7 @@ fi
 ############ PERFORM ADDITIONAL MASKING OF METABOLIC MAPS BASED ON SNR/FWHM AND (FROM NAA/CR) CRLBs ############ (FROM METABOLITES)
 if [[ $mask_using_CRLBs_flag -eq 1 ]]; then
     echo -e "\n\n8. Generate masked mnc files.\n\n"
-    bash Bash_Functions/Masking/GH_MRSI_automatic_map_masking_with_CRLBS_v10.sh
+    bash Bash_Functions/Masking/Met_Map_Masking.sh -o "$out_dir" # defaults to "-s 2.5 -f 0.15 -c 40"
 fi
 
 #9.
@@ -475,7 +476,7 @@ if [[ $T1_and_water_correction_flag -eq 1 ]]; then
 
     if [[ $mask_using_CRLBs_flag -eq 1 ]]; then
         echo -e "\n\n9. T1 correction, B1 correction and water referencing. \n\n"
-        bash Bash_Functions/WREF/GH_T1_WREF_weighting_v2.sh
+        bash Bash_Functions/WREF/CE_calculation.sh -o "$out_dir"
     else
         echo -e "\n\n9.Please set -C to enable T1/B1 and water reference corrections! Do not forget to enable the segmentation flag too!\n\n"
     fi
@@ -599,17 +600,21 @@ if [[ $dont_compress_spectra_flag -eq 0 ]]; then
 
     # Check if pigz is installed, which is a parallel implementation of gzip
     compress_program=$(command -v pigz || echo gzip)
-    
+
     for target in "spectra" "water_spectra"; do
-        
-        if [[ -d "${local_folder}/${target}" && ! -f "${out_dir}/${target}.tar.gz" ]]; then
-        
-            tar cf "${local_folder}/${target}.tar.gz" --use-compress-program="$compress_program" -C "${local_folder}" "${target}" && rm -rf "${local_folder:?}/${target}"
-        
-            if [[ ! "$local_folder" == "$out_dir" ]]; then
-                cp "${local_folder}/${target}.tar.gz" "${out_dir}/${target}.tar.gz"            
+
+        if [[ -d "${local_folder}/${target}" ]]; then
+
+            if [[ ! -f "${out_dir}/${target}.tar.gz" ]]; then
+                tar cf "${out_dir}/${target}.tar.gz" --use-compress-program="$compress_program" -C "${local_folder}" "${target}"
             fi
 
+            target_count=$(find "${local_folder}/${target}" | wc -l)
+            archive_count=$(tar -tzf "${out_dir}/${target}.tar.gz" | wc -l)
+            if [[ ${target_count} -eq ${archive_count} ]]; then
+                rm -rf "${local_folder:?}/${target}"
+            fi
+            
         fi
 
     done
@@ -622,7 +627,6 @@ fi
 ############ Remove Seg_temp ############
 echo -e "\n\n13. REMOVE Seg_temp FOLDER.\n\n"
 rm -R -f "${out_dir}/maps/Seg_temp"
-
 
 ############ WRITE THE SOURCECODE THAT WAS USED TO OUT-DIR ############
 echo -e "\n\n15. WRITE THE USED SOURCECODE TO out-dir.\n\n"

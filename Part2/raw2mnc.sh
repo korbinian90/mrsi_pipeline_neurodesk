@@ -1,8 +1,8 @@
 #!/bin/bash
 # Create Mincfiles out of raw files
-for maptype in 'Orig/' 'Outlier_Clip/' 'QualityAndOutlier_Clip/' 'Ratio/' 'Extra/' 'SyntheticMaps/' 'Segmentation/' 'B1corr/' 'T1corr/' '' 'CorrectionMaps_B1c/' 'CorrectionMaps_T1c/'; do
-
-	if [[ ! -d "${out_dir}/maps/${maptype}" ]]; then
+for maptype in 'Orig/' 'Outlier_Clip/' 'QualityAndOutlier_Clip/' 'Ratio/' 'Extra/' 'SyntheticMaps/' '' CE_Stuff/CorrectionMaps/; do
+	
+	if [[ ! -d "${out_dir}/maps/${maptype}" ]]; then		
 		continue
 	fi
 

@@ -1,5 +1,16 @@
 #!/bin/bash
 # Run this script on MRF!
+# Requires mnc2nii and mri_synthseg
+# In the pipeline, there should be export out_dir=/path/to/your/output/directory
+
+# Check if output directory is set, if not: use argument $1
+if [ -z ${out_dir+x} ]; then
+	if [ -z $1 ]; then
+		echo -e "Please set the output directory using 'export out_dir=/path/to/your/output/directory' or provide the path as an argument."
+		exit 1
+	fi
+	out_dir=$1
+fi
 
 corecount=32
 
