@@ -19,5 +19,5 @@ export tmp_folder
 export DefaultGradientDelaysForCRTTrajectory="[12.562838, 12.540197, 10.082248]"
 
 # MATLAB Runtime (runs compiled MATLAB code without required license)
-LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/opt/MATLAB_Runtime_R2021b/v911/runtime/glnxa64:/opt/MATLAB_Runtime_R2021b/v911/bin/glnxa64:/opt/MATLAB_Runtime_R2021b/v911/sys/os/glnxa64:/opt/MATLAB_Runtime_R2021b/v911/sys/opengl/lib/glnxa64
+LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/opt/MATLAB_Runtime_R2023a/R2023a/runtime/glnxa64:/opt/MATLAB_Runtime_R2023a/R2023a/bin/glnxa64:/opt/MATLAB_Runtime_R2023a/R2023a/sys/os/glnxa64:/opt/MATLAB_Runtime_R2023a/R2023a/sys/opengl/lib/glnxa64
 export MatlabCompiledFunctions="Matlab_Compiled"

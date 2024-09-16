@@ -2,7 +2,7 @@ flip_mask Executable
 
 1. Prerequisites for Deployment 
 
-Verify that version 9.11 (R2021b) of the MATLAB Runtime is installed.   
+Verify that MATLAB Runtime(R2023a) is installed.   
 If not, you can run the MATLAB Runtime installer.
 To find its location, enter
   
@@ -10,7 +10,7 @@ To find its location, enter
       
 at the MATLAB prompt.
 
-Alternatively, download and install the Linux version of the MATLAB Runtime for R2021b 
+Alternatively, download and install the Linux version of the MATLAB Runtime for R2023a 
 from the following link on the MathWorks website:
 
     https://www.mathworks.com/products/compiler/mcr/index.html
@@ -31,14 +31,14 @@ Files to Package for Standalone
        ./run_flip_mask.sh <mcr_directory> <argument_list>
        
     at Linux or Mac command prompt. <mcr_directory> is the directory 
-    where version 9.11 of the MATLAB Runtime is installed or the directory where 
+    where MATLAB Runtime(R2023a) is installed or the directory where 
     MATLAB is installed on the machine. <argument_list> is all the 
     arguments you want to pass to your application. For example, 
 
-    If you have version 9.11 of the MATLAB Runtime installed in 
-    /mathworks/home/application/v911, run the shell script as:
+    If you have MATLAB Runtime(R2023a) installed in 
+    /mathworks/home/application/R2023a, run the shell script as:
     
-       ./run_flip_mask.sh /mathworks/home/application/v911
+       ./run_flip_mask.sh /mathworks/home/application/R2023a
        
     If you have MATLAB installed in /mathworks/devel/application/matlab, 
     run the shell script as:
@@ -64,21 +64,22 @@ Center.
 4. Appendix 
 
 A. Linux systems:
-In the following directions, replace MR/v911 by the directory on the target machine where 
-   MATLAB is installed, or MR by the directory where the MATLAB Runtime is installed.
+In the following directions, replace MR/R2023a by the directory on the target machine 
+   where MATLAB is installed, or MR by the directory where the MATLAB Runtime is 
+   installed.
 
 (1) Set the environment variable XAPPLRESDIR to this value:
 
-MR/v911/X11/app-defaults
+MR/R2023a/X11/app-defaults
 
 
 (2) If the environment variable LD_LIBRARY_PATH is undefined, set it to the following:
 
-MR/v911/runtime/glnxa64:MR/v911/bin/glnxa64:MR/v911/sys/os/glnxa64:MR/v911/sys/opengl/lib/glnxa64
+MR/R2023a/runtime/glnxa64:MR/R2023a/bin/glnxa64:MR/R2023a/sys/os/glnxa64:MR/R2023a/sys/opengl/lib/glnxa64
 
 If it is defined, set it to the following:
 
-${LD_LIBRARY_PATH}:MR/v911/runtime/glnxa64:MR/v911/bin/glnxa64:MR/v911/sys/os/glnxa64:MR/v911/sys/opengl/lib/glnxa64
+${LD_LIBRARY_PATH}:MR/R2023a/runtime/glnxa64:MR/R2023a/bin/glnxa64:MR/R2023a/sys/os/glnxa64:MR/R2023a/sys/opengl/lib/glnxa64
 
     For more detailed information about setting the MATLAB Runtime paths, see Package and 
    Distribute in the MATLAB Compiler documentation in the MathWorks Documentation Center.
