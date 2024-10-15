@@ -72,7 +72,7 @@ ControlWrite.CHOMIT =  {'CHOMIT(1) = ''Lip13a''','CHOMIT(2) = ''Lip13b''','CHOMI
 % This is a little bit of a hack, since it has in principle nothing to do in this file
 % But it works!
 CPU_cores = 0; % uses all cores
-progessbar = 1;
+Progressbar = 1;
 
 
 
