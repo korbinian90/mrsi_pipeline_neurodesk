@@ -50,10 +50,18 @@ TerminateProgram() {
 run_matlab() {
     if [[ $compiled_matlab_flag -eq 1 ]]; then
         # run the compiled matlab function
+        echo -e "\nRun this command: $MatlabCompiledFunctions/$1 $abs_tmp_dir"
+        if [[ $2 == "1" ]]; then
+	        read -p "stop before matlab call"
+        fi
         "$MatlabCompiledFunctions/$1" "$abs_tmp_dir"
     else
         # run the matlab script ($1)
-        $matlabp -nodisplay -batch "addpath(genpath('$MatlabFunctionsFolder')); $1('$abs_tmp_dir')"
+        echo -e "\nRun this command: $matlabp -nodisplay -r \"addpath(genpath('$MatlabFunctionsFolder')); $1('$abs_tmp_dir')\""
+        if [[ $2 == "1" ]]; then
+	        read -p "stop before matlab call"
+        fi
+        $matlabp -nodisplay -r "addpath(genpath('$MatlabFunctionsFolder')); $1('$abs_tmp_dir'); exit"
     fi
 }
 
@@ -417,7 +425,7 @@ if [[ $segmentation_flag -eq 1 ]]; then
         bash Bash_Functions/Segmentation/synthseg.sh # Using SynthSeg from FreeSurfer 7.4.1
     fi
 
-    run_matlab segmentation_simple
+    run_matlab segmentation_simple 0
 
     echo -e "\n\n3. DEBUG -convert templates \n\n"
     bash raw2mnc_seg.sh
@@ -433,9 +441,9 @@ if ! [[ $compute_reg_only_flag -eq 1 || $compute_seg_only_flag -eq 1 ]]; then # 
     if [ -d "${out_dir}/water_spectra" ]; then
         echo -e "\n\n Read LCModel water results and store them into RAW\n\n"
         echo -e "\n\n Calculate B1/T1 correction \n\n"
-        run_matlab extract_met_maps
+        run_matlab extract_met_maps 0
     fi
-    run_matlab extract_met_maps
+    run_matlab extract_met_maps 0
 fi
 
 #5.
@@ -444,7 +452,7 @@ if ! [[ $compute_reg_only_flag -eq 1 || $compute_seg_only_flag -eq 1 ]]; then # 
     if [[ $spectra_stack_flag -eq 1 ]]; then
         echo -e "\n\n5. READ *.coord FILES AND DISPLAY STACK OF SPECTRA IN *.eps!\n\n"
         mkdir -p "${out_dir}/figures"
-        run_matlab extract_spectra
+        run_matlab extract_spectra 0
     fi
 fi
 
@@ -574,7 +582,7 @@ fi
 # Create Spectrum-Nifti files (Nifti-files with the spectrum and Fit as time-courses)
 echo -e "\n\nCreate Spectral NiftiMap.\n\n"
 if [[ $SpectralMap_flag -eq 1 ]]; then
-    run_matlab CreateSpectralNiftiMap
+    run_matlab CreateSpectralNiftiMap 0
 fi
 
 #11.
