@@ -263,6 +263,13 @@ RUN pip install --no-cache-dir --upgrade pip setuptools==81.0.0 wheel \
 # Nothing but known_hosts is written into the image.
 # The clones are ordered so that bumping PART1_REF or PART2_REF, which happens
 # most often, invalidates the fewest layers.
+#
+# Each ref may be a branch, a tag or a raw SHA. After a clone a branch exists
+# only as a remote-tracking ref, and "git checkout --detach <branch>" then dies
+# with "'--detach' cannot be used with '-b/-B/--orphan'" because git tries to
+# create a local tracking branch. So resolve origin/<ref> first and fall back
+# to <ref> for tags and SHAs, which have no origin/ prefix. A ref that is none
+# of the three still fails the build, as it should.
 # ---------------------------------------------------------------------------
 ARG DEEPFIRE_REF=main
 ARG MRSIJL_REF=main
@@ -273,11 +280,13 @@ RUN mkdir -p -m 0700 /root/.ssh && ssh-keyscan -t rsa,ecdsa,ed25519 github.com >
 
 RUN --mount=type=ssh \
     git clone git@github.com:korbinian90/MRSIdeepFIRE.git /opt/deepmrsi \
-    && git -C /opt/deepmrsi checkout --detach "${DEEPFIRE_REF}"
+    && { git -C /opt/deepmrsi checkout --detach "origin/${DEEPFIRE_REF}" 2>/dev/null \
+         || git -C /opt/deepmrsi checkout --detach "${DEEPFIRE_REF}"; }
 
 RUN --mount=type=ssh \
     git clone git@github.com:korbinian90/MRSI.jl.git /opt/MRSI.jl \
-    && git -C /opt/MRSI.jl checkout --detach "${MRSIJL_REF}"
+    && { git -C /opt/MRSI.jl checkout --detach "origin/${MRSIJL_REF}" 2>/dev/null \
+         || git -C /opt/MRSI.jl checkout --detach "${MRSIJL_REF}"; }
 
 # deepmrsi Python packages, installed editable from the pinned checkout so the
 # image and the checkout can never disagree about which code ran.
@@ -311,11 +320,13 @@ RUN julia --startup-file=no -e 'using Pkg; Pkg.develop(path="/opt/MRSI.jl"); Pkg
 
 RUN --mount=type=ssh \
     git clone git@github.com:phipzl/Part1_Reco_LCModel_MUSICAL_Streamlined_Git.git /opt/Part1 \
-    && git -C /opt/Part1 checkout --detach "${PART1_REF}"
+    && { git -C /opt/Part1 checkout --detach "origin/${PART1_REF}" 2>/dev/null \
+         || git -C /opt/Part1 checkout --detach "${PART1_REF}"; }
 
 RUN --mount=type=ssh \
     git clone git@github.com:phipzl/Part2_Registration_Evaluation_Streamlined_Git.git /opt/Part2 \
-    && git -C /opt/Part2 checkout --detach "${PART2_REF}"
+    && { git -C /opt/Part2 checkout --detach "origin/${PART2_REF}" 2>/dev/null \
+         || git -C /opt/Part2 checkout --detach "${PART2_REF}"; }
 
 # ---------------------------------------------------------------------------
 # Pipeline environment
