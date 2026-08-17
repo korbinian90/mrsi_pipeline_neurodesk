@@ -169,6 +169,7 @@ export control_echo_flag=0
 export basis_echo_flag=0
 export XPACE_motion_correction_flag=0
 export julia_reconstruction=0
+export deep_learning_flag=0
 export B1corr_flag=0
 export NonCartTraj_flag=0
 export compiled_matlab_flag=0
@@ -184,7 +185,7 @@ LipidDecon_MethodAndNoOfLoops="L1,10"
 export julia_n_threads="auto"
 export julia_mmap="false"
 
-while getopts 'c:b:o:a:A:B:D:e:E:f:g:G:h:i:I:j:J:k:L:m:n:p:P:r:R:s:S:t:T:v:w:W:X:z:dFKlu?' OPTION; do
+while getopts 'c:b:o:a:A:B:D:e:E:f:g:G:h:i:I:j:J:k:L:m:n:p:P:r:R:s:S:t:T:v:w:W:X:z:dFKQlu?' OPTION; do
     case $OPTION in
 
     #mandatory
@@ -339,6 +340,9 @@ while getopts 'c:b:o:a:A:B:D:e:E:f:g:G:h:i:I:j:J:k:L:m:n:p:P:r:R:s:S:t:T:v:w:W:X
 	K)
 		export compiled_matlab_flag=1
 		;;
+    Q)
+        export deep_learning_flag=1
+        ;;
     l)
         export dont_compute_LCM_flag=1
         ;;
@@ -382,6 +386,7 @@ optional:
 -r  [InPlaneCaipPattern_And_VD_Radius]  The InPlaneCaipPattern and the VD_Radius as used in ParallelImagingSimReco.m. Example: \"InPlaneCaipPattern = [0 0 0; 0 0 0; 0 0 1]; VD_Radius = 2;\".
 -R  [SliceAliasingPattern]
 -s  [NonCartTrajFile_path]  Use this option if CSI Data is raw NonCartesian data and pass over trajectory file/path in .m or .mat file (.m file for theoretical \"calculated\" gradients, .mat file for \"measured\" trajectory). For some trajectories (CRT, Antoines rosette/eccentric, egg-trajectory) this is not necessary, as the read-in functions can automatically calculate the trajectory based on the header information. If a measured trajectory is provided with a mat file, it may contain a variable StartingPointAfterLaunchTrack which needs to be a cell with one entry for each angular interleaf, each containing one number saying how many ADC points should be omitted at the beginning in case the measured trajectory was calculated only from a later time point. The file must contain a variable kSpaceTrajectory with subfield .GM (GradientMoment) being a cell with one entry for each angular interleaf, each being a matrix of size [2 ADCPtsPerCircle].
+-Q                          Use deep learning quantification (deepmrsi/DLFIT) instead of LCModel. Saves FID, patref, prescan as NIfTI to <out_path>/deepmrsi_inputs/, then runs Python deepmrsi. Output NIfTI metabolite maps are written to <out_path>/deepMRSI/.
 -S  [threads] [mmap]        Use the Julia reconstruction version (less RAM usage, different reconstruction algorithm). [threads=auto] can be auto or a number. [mmap=false] can be \"true\", \"false\" or a path.
 -t  [T1 images]             Format: DICOM. Folder of 3d T1-weighted acquisition containing DICOM files. Used for creating mask and for visual purposes. If minc file is given instead of folder, it is treated as the magnitude file.
 -T  \"[TruncateFactor ZerofillFactor FillToOrig]\"  Interpolation of FID data in time domain using truncation and zerofilling. TruncateFactor determines how much of the orignal data is left after truncation and must be a value from 0 to 1. ZerofillFactor determines how far the zerofilling happens (relative to the truncated data) and must be larger >1. If FillToOrig is 1, the data is truncated to TruncateFactor and afterwards filled up to the original length (ZerofillFactor is irrelevant in this case). Example: To truncate down to 50 percent and then zerofill to 2x the original size, use [0.5 4 0].
@@ -414,6 +419,9 @@ mkdir -p "$out_path/maps"
 mkdir -p "$out_path/phamaps"
 mkdir -p "$out_path/spectra"
 mkdir -p "$out_path/scalings"
+
+# Set deep learning output dir
+deep_learning_output_dir="$out_path/deepMRSI"
 
 # Set kSpaceCorrection to Default value written in InstallProgramPaths.sh
 if [[ $GradientDelay_flag -eq 1 ]]; then
@@ -491,11 +499,24 @@ for ((CurAvg = 1; CurAvg <= NumberOfCSIFiles; CurAvg = CurAvg + 1)); do
     run_mrsi_reconstruction $CurAvg
 done
 
+# Function to run deepmrsi Python bridge
+run_deepmrsi() {
+    local tmp_dir="$1"
+    local output_dir="$2"
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    mkdir -p "$output_dir"
+    echo "Running deepmrsi deep learning quantification: output to $output_dir"
+    python "$script_dir/run_deepmrsi.py" "$tmp_dir" "$output_dir"
+}
+
 # read -rp "Stop before LCModel fitting"
 #7.
-########### START LCMODEL PROCESSING OF SINGLE VOXEL DATA ON CPU CORES ############
-echo -e "\n\n7. Start LCModel Processing\n\n"
-if [[ $dont_compute_LCM_flag -eq 0 ]]; then
+########### START LCMODEL PROCESSING OR DEEP LEARNING QUANTIFICATION ############
+echo -e "\n\n7. Start LCModel Processing / Deep Learning Quantification\n\n"
+if [[ $deep_learning_flag -eq 1 ]]; then
+    run_deepmrsi "$abs_tmp_dir" "$deep_learning_output_dir"
+elif [[ $dont_compute_LCM_flag -eq 0 ]]; then
     curdir=$(pwd)
     CurrentComputer=$(hostname)
 
