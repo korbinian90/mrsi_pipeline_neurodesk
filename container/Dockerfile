@@ -303,9 +303,13 @@ RUN pip install --no-cache-dir -r /opt/deepmrsi/deepMRSI/requirements.txt \
 # WALINET model directory. The package resolves its weights relative to
 # walinet/models, and the large experiment directories (7T_Final, ~1 GB) are
 # gitignored upstream, so they are not in the clone and have to be supplied at
-# run time. Relocating the directory to a writable path outside the package
-# lets a run mount or copy weights in without a rebuild.
-ENV WALINET_MODEL_DIR=/opt/walinet_models
+# run time. Relocating the directory to a writable path outside the package and
+# symlinking it back lets a run mount or copy weights in without a rebuild.
+#
+# Build-time only, deliberately not an ENV: nothing reads this variable, the
+# relocation works purely through the symlink below, so exporting it would
+# advertise a runtime knob that has no effect.
+ARG WALINET_MODEL_DIR=/opt/walinet_models
 RUN WALINET_PKG=/opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/walinet/walinet \
     && mv "${WALINET_PKG}/models" "${WALINET_MODEL_DIR}" \
     && ln -s "${WALINET_MODEL_DIR}" "${WALINET_PKG}/models" \

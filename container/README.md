@@ -138,9 +138,9 @@ Added:
   an instantiated deepmrsi `offline_pipeline` project.
 
 Environment set by the image: `JULIA_MRSI_PKG=/opt/MRSI.jl`,
-`JULIA_DEEPMRSI_PKG=/opt/deepmrsi/offline_pipeline`,
-`WALINET_MODEL_DIR=/opt/walinet_models`, `MNI_ATLAS_DIR`,
-`MatlabFunctionsFolder`, and `/opt/Part1` plus `/opt/Part2` on `PATH`.
+`JULIA_DEEPMRSI_PKG=/opt/deepmrsi/offline_pipeline`, `MNI_ATLAS_DIR`,
+`MatlabFunctionsFolder`, `MATLAB_RUNTIME_ROOT`, and `/opt/Part1` plus
+`/opt/Part2` on `PATH`.
 
 ## Fitting backends
 
@@ -165,9 +165,15 @@ it.
 ## WALINET model
 
 `walinet` resolves its weights as
-`<walinet package>/models/<model_relative_path>`, and the image relocates that
-directory to `WALINET_MODEL_DIR=/opt/walinet_models` (world writable, symlinked
-back into the package) so weights can be added without a rebuild.
+`<walinet package>/models/<model_relative_path>`, and the package has no
+setting for that location. So at build time the image moves that directory to
+`/opt/walinet_models`, makes it world writable and symlinks it back into the
+package, which is what lets weights be added at run time without a rebuild.
+
+The path is a build argument (`--build-arg WALINET_MODEL_DIR=...`), not a
+runtime variable: it only decides where the symlink points while the image is
+built, so setting it on `docker run` would do nothing and the image does not
+export it.
 
 The default `model_relative_path` is `7T_Final`, an experiment directory of
 about 1 GB that is **gitignored upstream and therefore not in the clone**. It
