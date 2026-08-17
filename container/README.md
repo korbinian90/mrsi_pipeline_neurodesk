@@ -114,7 +114,9 @@ Removed, with the reason:
 * **FreeSurfer 7.4.1 and its X11/csh apt prerequisites (about 9.5 GB).** The
   only consumer was `Part2/Bash_Functions/Segmentation/synthseg.sh`, which is
   being deleted from Part2. There is not a single FreeSurfer string in any of
-  the 14 compiled MATLAB binaries.
+  the 11 unique compiled MATLAB binaries in this repository: 4 under
+  `Part1/Matlab_Compiled`, 4 under `Part2/Matlab_Compiled` and 3 under
+  `matlab_compiled` (11 distinct checksums, no duplicates among them).
 * **HD-BET and its CUDA torch / nnU-Net closure (about 6.3 GB).** Zero matches
   repo-wide; brain extraction goes through FSL `bet`.
 * **The five LCModel basis-set zips.** Nothing references
