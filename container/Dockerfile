@@ -37,8 +37,8 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG DCM2NIIX_REF=003f0d19f1e57b0129c9dcf3e653f51ca3559028
 ARG MINC_VERSION=1.9.15
 ARG LCMODEL_VERSION=6.3
-ARG MATLAB_VERSION=2021b
-ARG MATLAB_UPDATE_VERSION=6
+ARG MATLAB_VERSION=2023a
+ARG MATLAB_UPDATE_VERSION=8
 ARG MRITOOLS_VERSION=4.5.3
 ARG JULIA_VERSION=1.12.6
 
@@ -176,22 +176,33 @@ ENV PATH="${PATH}:/opt/lcmodel-${LCMODEL_VERSION}/.lcmodel/bin:/opt/lcmodel-${LC
 ENV LCM_Path="/opt/lcmodel-${LCMODEL_VERSION}/.lcmodel/bin/lcmodel"
 
 # ---------------------------------------------------------------------------
-# MATLAB Runtime R2021b (v911)
+# MATLAB Runtime R2023a
 #
 # KEPT, and mandatory: every compiled binary in Part1/Matlab_Compiled and
-# Part2/Matlab_Compiled was built against R2021b, and its v911 layout is what
-# InstallProgramPaths.sh puts on LD_LIBRARY_PATH. ~3.9 GB, the single largest
+# Part2/Matlab_Compiled was built against R2023a - both Matlab_Compiled
+# readme.txt files say "Verify that MATLAB Runtime(R2023a) is installed" - and
+# both InstallProgramPaths.sh scripts put /opt/MATLAB_Runtime_R2023a/R2023a/...
+# on LD_LIBRARY_PATH. About 4.7 GB of installer download, the single largest
 # component of the image and not removable without recompiling the MATLAB code.
+#
+# From R2023a on, the runtime installs into a release-named subdirectory
+# (R2023a) rather than the older version-numbered one (v911 for R2021b), so
+# MATLAB_RUNTIME_ROOT derives the whole path from MATLAB_VERSION and nothing
+# below repeats a release string. The install step asserts that the derived
+# directory exists, so bumping MATLAB_VERSION to a release with a different
+# layout fails here instead of leaving LD_LIBRARY_PATH pointing at nothing.
 # ---------------------------------------------------------------------------
+ENV MATLAB_RUNTIME_ROOT="/opt/MATLAB_Runtime_R${MATLAB_VERSION}/R${MATLAB_VERSION}"
 RUN apt-get update -qq \
     && apt-get install -y -q --no-install-recommends libncurses5 libxext6 libxmu6 libxpm-dev libxt6 \
     && rm -rf /var/lib/apt/lists/* \
     && cd /opt \
     && curl -fL -O "https://ssd.mathworks.com/supportfiles/downloads/R${MATLAB_VERSION}/Release/${MATLAB_UPDATE_VERSION}/deployment_files/installer/complete/glnxa64/MATLAB_Runtime_R${MATLAB_VERSION}_Update_${MATLAB_UPDATE_VERSION}_glnxa64.zip" \
     && unzip -q "MATLAB_Runtime_R${MATLAB_VERSION}_Update_${MATLAB_UPDATE_VERSION}_glnxa64.zip" -d mcrtmp \
-    && mcrtmp/install -mode silent -destinationFolder /opt/MATLAB_Runtime_R${MATLAB_VERSION} -agreeToLicense yes \
-    && rm -rf mcrtmp "MATLAB_Runtime_R${MATLAB_VERSION}_Update_${MATLAB_UPDATE_VERSION}_glnxa64.zip"
-ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/opt/MATLAB_Runtime_R2021b/v911/runtime/glnxa64:/opt/MATLAB_Runtime_R2021b/v911/bin/glnxa64:/opt/MATLAB_Runtime_R2021b/v911/sys/os/glnxa64:/opt/MATLAB_Runtime_R2021b/v911/sys/opengl/lib/glnxa64:/opt/MATLAB_Runtime_R2021b/v911/extern/bin/glnxa64"
+    && mcrtmp/install -mode silent -destinationFolder "/opt/MATLAB_Runtime_R${MATLAB_VERSION}" -agreeToLicense yes \
+    && rm -rf mcrtmp "MATLAB_Runtime_R${MATLAB_VERSION}_Update_${MATLAB_UPDATE_VERSION}_glnxa64.zip" \
+    && test -d "${MATLAB_RUNTIME_ROOT}/runtime/glnxa64"
+ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${MATLAB_RUNTIME_ROOT}/runtime/glnxa64:${MATLAB_RUNTIME_ROOT}/bin/glnxa64:${MATLAB_RUNTIME_ROOT}/sys/os/glnxa64:${MATLAB_RUNTIME_ROOT}/sys/opengl/lib/glnxa64:${MATLAB_RUNTIME_ROOT}/extern/bin/glnxa64"
 
 # ---------------------------------------------------------------------------
 # NOT INSTALLED: FreeSurfer 7.4.1 (~9.5 GB)

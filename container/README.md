@@ -23,8 +23,9 @@ repositories, so upstream work arrives by bumping one build argument:
   The agent is forwarded into the build with `--ssh default` and is available
   only for the duration of the clone steps. No key material is written into the
   image.
-* Disk: the build downloads roughly 5 GB (MATLAB Runtime alone is about 3.9 GB)
-  and the finished image is expected to land in the high single-digit GB range.
+* Disk: the build downloads roughly 6 GB (the MATLAB Runtime R2023a installer
+  alone is 4.7 GB) and the finished image is expected to land in the high
+  single-digit GB range.
   This is an estimate. The image has not been built yet, see "Not yet verified".
 
 ## Build
@@ -91,9 +92,13 @@ writes to lives under the working directory you pass in.
 
 Carried over from the Neurodesk recipe `recipes/mrsiproc/build.yaml` (v0.2.0):
 
-* **MATLAB Runtime R2021b (v911)**, about 3.9 GB and mandatory. Every compiled
-  binary under `Part1/Matlab_Compiled` and `Part2/Matlab_Compiled` was built
-  against it.
+* **MATLAB Runtime R2023a**, about 4.7 GB of installer download and mandatory.
+  Every compiled binary under `Part1/Matlab_Compiled` and
+  `Part2/Matlab_Compiled` was built against it: both `Matlab_Compiled`
+  `readme.txt` files ask for R2023a, and both `InstallProgramPaths.sh` scripts
+  put `/opt/MATLAB_Runtime_R2023a/R2023a/...` on `LD_LIBRARY_PATH`, which is
+  the layout the image installs. Note that R2023a and later use a
+  release-named subdirectory rather than the older `v9xx` one.
 * **MINC toolkit 1.9.15** plus the ICBM152 09a/09c models. The whole pipeline
   speaks MINC.
 * **FSL**, from the `vnmd/fsl_6.0.7.1` base image. `bet` is the brain
