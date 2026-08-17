@@ -12,11 +12,15 @@
 #
 # Everything is overridable through the environment:
 #   IMAGE            image name:tag                  (default mrsi-pipeline:local)
-#   PART1_REF        Part1 branch, tag or commit     (default julia-reco)
-#   PART2_REF        Part2 branch, tag or commit     (default master)
-#   DEEPFIRE_REF     MRSIdeepFIRE ref                (default main)
-#   MRSIJL_REF       MRSI.jl ref                     (default main)
-#   TORCH_INDEX_URL  PyTorch wheel index             (default the CPU index)
+#   PART1_REF        Part1 branch, tag or commit
+#   PART2_REF        Part2 branch, tag or commit
+#   DEEPFIRE_REF     MRSIdeepFIRE ref
+#   MRSIJL_REF       MRSI.jl ref
+#   TORCH_INDEX_URL  PyTorch wheel index
+#
+# Only the variables you actually set are passed on as --build-arg, so the
+# Dockerfile's ARG defaults stay the single source of truth for the rest. Do
+# not repeat those defaults here: two lists drift.
 #
 # Examples:
 #   ./build.sh
@@ -29,11 +33,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 IMAGE="${IMAGE:-mrsi-pipeline:local}"
-PART1_REF="${PART1_REF:-julia-reco}"
-PART2_REF="${PART2_REF:-master}"
-DEEPFIRE_REF="${DEEPFIRE_REF:-main}"
-MRSIJL_REF="${MRSIJL_REF:-main}"
-TORCH_INDEX_URL="${TORCH_INDEX_URL:-https://download.pytorch.org/whl/cpu}"
+
+BUILD_ARGS=()
+for var in PART1_REF PART2_REF DEEPFIRE_REF MRSIJL_REF TORCH_INDEX_URL; do
+    if [[ -n "${!var:-}" ]]; then
+        BUILD_ARGS+=(--build-arg "${var}=${!var}")
+    fi
+done
 
 if [[ -z "${SSH_AUTH_SOCK:-}" ]]; then
     echo "ERROR: no SSH agent found (SSH_AUTH_SOCK is empty)." >&2
@@ -44,19 +50,13 @@ if [[ -z "${SSH_AUTH_SOCK:-}" ]]; then
 fi
 
 echo "Building ${IMAGE}"
-echo "  PART1_REF       = ${PART1_REF}"
-echo "  PART2_REF       = ${PART2_REF}"
-echo "  DEEPFIRE_REF    = ${DEEPFIRE_REF}"
-echo "  MRSIJL_REF      = ${MRSIJL_REF}"
-echo "  TORCH_INDEX_URL = ${TORCH_INDEX_URL}"
+for var in PART1_REF PART2_REF DEEPFIRE_REF MRSIJL_REF TORCH_INDEX_URL; do
+    printf '  %-15s = %s\n' "${var}" "${!var:-<Dockerfile default>}"
+done
 
 DOCKER_BUILDKIT=1 docker build \
     --ssh default \
-    --build-arg "PART1_REF=${PART1_REF}" \
-    --build-arg "PART2_REF=${PART2_REF}" \
-    --build-arg "DEEPFIRE_REF=${DEEPFIRE_REF}" \
-    --build-arg "MRSIJL_REF=${MRSIJL_REF}" \
-    --build-arg "TORCH_INDEX_URL=${TORCH_INDEX_URL}" \
+    ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"} \
     -t "${IMAGE}" \
     -f "${SCRIPT_DIR}/Dockerfile" \
     "$@" \

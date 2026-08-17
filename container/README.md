@@ -51,8 +51,10 @@ PART1_REF=3f2a1c9 ./container/build.sh          # new Part1 only
 DEEPFIRE_REF=v1.4.0 ./container/build.sh        # new deepmrsi only
 ```
 
-The defaults are branch names (`julia-reco`, `master`, `main`, `main`), which
-are convenient for development but are not reproducible. For anything you hand
+The defaults live in the Dockerfile's `ARG` lines and nowhere else: `build.sh`
+passes `--build-arg` only for the variables you actually set. They are branch
+names (`julia-reco`, `master`, `main`, `main`), which are convenient for
+development but are not reproducible. For anything you hand
 to the collaborator, pass explicit commit SHAs and note them down. After a
 build, the image can tell you what it actually contains:
 
