@@ -292,7 +292,13 @@ RUN --mount=type=ssh \
 
 # deepmrsi Python packages, installed editable from the pinned checkout so the
 # image and the checkout can never disagree about which code ran.
-RUN pip install --no-cache-dir -r /opt/deepmrsi/deepMRSI/requirements.txt \
+#
+# deepMRSI/requirements.txt is checked in as UTF-16LE with a BOM. pip's legacy
+# auto-decoding of that is not something to rely on, so transcode to UTF-8
+# first rather than let the build depend on the pip version in the image.
+RUN iconv -f UTF-16 -t UTF-8 /opt/deepmrsi/deepMRSI/requirements.txt > /tmp/deepmrsi-requirements.txt \
+    && pip install --no-cache-dir -r /tmp/deepmrsi-requirements.txt \
+    && rm -f /tmp/deepmrsi-requirements.txt \
     && pip install --no-cache-dir -e /opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/deep_crt_mrsi \
     && pip install --no-cache-dir -e /opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/mrs_utils \
     && pip install --no-cache-dir -e /opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/forD_gpu_fit \
