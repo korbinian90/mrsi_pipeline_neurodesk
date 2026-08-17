@@ -17,6 +17,9 @@
 #   DEEPFIRE_REF     MRSIdeepFIRE ref
 #   MRSIJL_REF       MRSI.jl ref
 #   TORCH_INDEX_URL  PyTorch wheel index
+#   REQUIRE_WALINET_MODELS
+#                    which baked-in WALINET models the build insists on:
+#                    legacy_7T (default), all, or a comma separated list
 #
 # Only the variables you actually set are passed on as --build-arg, so the
 # Dockerfile's ARG defaults stay the single source of truth for the rest. Do
@@ -26,6 +29,7 @@
 #   ./build.sh
 #   PART1_REF=3f2a1c9 ./build.sh
 #   TORCH_INDEX_URL=https://download.pytorch.org/whl/cu118 ./build.sh
+#   REQUIRE_WALINET_MODELS=all ./build.sh     # the shipping build
 #   ./build.sh --progress=plain --no-cache
 
 set -euo pipefail
@@ -35,7 +39,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGE="${IMAGE:-mrsi-pipeline:local}"
 
 BUILD_ARGS=()
-for var in PART1_REF PART2_REF DEEPFIRE_REF MRSIJL_REF TORCH_INDEX_URL; do
+for var in PART1_REF PART2_REF DEEPFIRE_REF MRSIJL_REF TORCH_INDEX_URL REQUIRE_WALINET_MODELS; do
     if [[ -n "${!var:-}" ]]; then
         BUILD_ARGS+=(--build-arg "${var}=${!var}")
     fi
@@ -50,7 +54,7 @@ if [[ -z "${SSH_AUTH_SOCK:-}" ]]; then
 fi
 
 echo "Building ${IMAGE}"
-for var in PART1_REF PART2_REF DEEPFIRE_REF MRSIJL_REF TORCH_INDEX_URL; do
+for var in PART1_REF PART2_REF DEEPFIRE_REF MRSIJL_REF TORCH_INDEX_URL REQUIRE_WALINET_MODELS; do
     printf '  %-15s = %s\n' "${var}" "${!var:-<Dockerfile default>}"
 done
 

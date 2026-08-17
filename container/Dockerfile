@@ -334,9 +334,19 @@ RUN WALINET_PKG=/opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/waline
 # it from the layer underneath. BuildKit is already required for the
 # --mount=type=ssh clones above, so this adds no new constraint. Nothing is
 # staged in a fresh clone, and the step is a no-op then.
+#
+# Whatever ends up installed is validated against the layout walinet expects,
+# so a missing or half-copied model stops the build with the names of the files
+# it wants, instead of shipping an image that dies mid-reconstruction.
+# REQUIRE_WALINET_MODELS says which models the build insists on: the default
+# only demands legacy_7T, so a build without the separately shipped weights
+# still works. The image for the collaborator is built with
+#   --build-arg REQUIRE_WALINET_MODELS=all
+ARG REQUIRE_WALINET_MODELS=legacy_7T
 RUN --mount=type=bind,source=walinet_models,target=/tmp/walinet_staging \
     --mount=type=bind,source=install_walinet_models.sh,target=/tmp/install_walinet_models.sh \
-    bash /tmp/install_walinet_models.sh /tmp/walinet_staging "${WALINET_MODEL_DIR}"
+    bash /tmp/install_walinet_models.sh /tmp/walinet_staging "${WALINET_MODEL_DIR}" \
+         "${REQUIRE_WALINET_MODELS}"
 
 # Julia packages: MRSI.jl developed into the shared depot so that both the
 # Part1 reconstruction (which activates JULIA_MRSI_PKG) and a bare `julia` see
