@@ -164,32 +164,49 @@ To change it in a built image, edit that JSON (the packages are installed
 editable, so the checkout is the source of truth) or mount a modified copy over
 it.
 
-## WALINET model
+## WALINET models
+
+The weights are **baked into the image**. The collaborator gets a tarball or a
+`.sif` and runs it: nothing is fetched from a network and nothing has to be
+mounted in.
 
 `walinet` resolves its weights as
 `<walinet package>/models/<model_relative_path>`, and the package has no
 setting for that location. So at build time the image moves that directory to
 `/opt/walinet_models`, makes it world writable and symlinks it back into the
-package, which is what lets weights be added at run time without a rebuild.
+package. The path is a build argument (`--build-arg WALINET_MODEL_DIR=...`),
+not a runtime variable: it only decides where the symlink points while the
+image is built, so setting it on `docker run` would do nothing and the image
+does not export it.
 
-The path is a build argument (`--build-arg WALINET_MODEL_DIR=...`), not a
-runtime variable: it only decides where the symlink points while the image is
-built, so setting it on `docker run` would do nothing and the image does not
-export it.
+| Model | In the image | Staged by hand |
+|---|---|---|
+| `legacy_7T` | `/opt/walinet_models/` | no, it is tracked in MRSIdeepFIRE |
+| `final_7T` | `/opt/walinet_models/7T_Final` | yes, about 1 GB |
+| `final_3T` | `/opt/walinet_models/3T_Final` | yes |
 
-The default `model_relative_path` is `7T_Final`, an experiment directory of
-about 1 GB that is **gitignored upstream and therefore not in the clone**. It
-has to be supplied at run time:
+`legacy_7T` comes with the pinned MRSIdeepFIRE checkout and is selectable in
+every image with no user action. `final_7T` and `final_3T` are in no git
+repository: drop their directories into `container/walinet_models/final_7T/`
+and `container/walinet_models/final_3T/` before building. That directory's
+[README](walinet_models/README.md) has the exact file list, where the weights
+come from, and how to spot a truncated copy.
+
+Every build validates what is installed, layout aware, and stops with the
+names of the missing files rather than producing an image whose model
+selection dies mid-reconstruction. `REQUIRE_WALINET_MODELS` says which models
+the build insists on:
 
 ```bash
-docker run --rm -v /path/to/7T_Final:/opt/walinet_models/7T_Final:ro ...
+./container/build.sh                          # default: only legacy_7T required
+REQUIRE_WALINET_MODELS=all ./container/build.sh   # the collaborator image
 ```
 
-The small `model_best.pt` that upstream does track sits at the root of the
-models directory. It is a different, older checkpoint and is not a drop-in for
-`7T_Final`, whose loader also reads the experiment's `configs/`. If no WALINET
-weights are available, set `"apply_walinet": false` in the `deep_crt_mrsi`
-`package_config.json` and the run skips water/lipid removal.
+Whatever is staged is validated either way, so a half-copied `final_7T` fails
+even the permissive default. Build the shipping image with `all`.
+
+If no WALINET weights are wanted at all, set `"apply_walinet": false` in the
+`deep_crt_mrsi` `package_config.json` and the run skips water/lipid removal.
 
 ## CPU and GPU
 
@@ -256,3 +273,8 @@ Written honestly, because none of the following has been proven by a run:
    build stops.
 9. **The default refs are branches, not commits.** Two builds a week apart can
    differ. Pass SHAs for anything shipped.
+10. **The WALINET staging path has never seen the real `final_7T` or
+    `final_3T` weights.** Neither was available when it was written, so it was
+    exercised only against fixture directories carrying the right file names,
+    plus `bash -n` and `docker build --check`. `legacy_7T`, which comes from
+    the checkout, is the only model any build so far could have installed.
