@@ -52,17 +52,48 @@ DEEPFIRE_REF=v1.4.0 ./container/build.sh        # new deepmrsi only
 ```
 
 The defaults live in the Dockerfile's `ARG` lines and nowhere else: `build.sh`
-passes `--build-arg` only for the variables you actually set. They are branch
-names (`julia-reco`, `master`, `main`, `main`), which are convenient for
-development but are not reproducible. For anything you hand to the
-collaborator, pass explicit commit SHAs and note them down. After a build, the
-image can tell you what it actually contains:
+passes `--build-arg` only for the variables you actually set. They are the four
+upstream default branches, which are convenient for development but are not
+reproducible. For anything you hand to the collaborator, pass explicit commit
+SHAs and note them down. After a build, the image can tell you what it actually
+contains:
 
 ```bash
 docker run --rm mrsi-pipeline:local bash -lc \
   'for r in /opt/Part1 /opt/Part2 /opt/deepmrsi /opt/MRSI.jl; do
        echo -n "$r "; git -C $r rev-parse HEAD; done'
 ```
+
+### Building with the target-A work
+
+The default refs build a working image, but one WITHOUT the target-A feature
+set. The Julia dispatch (`-S`), the deep-learning fit path (`-Q`), the WALINET
+model selector and the MRSI.jl water-reference weights all live on feature
+branches that exist only on the workstation. A clone inside the build cannot
+see them, so they must be pushed first:
+
+| repository  | branch                                     | pushable to        |
+|-------------|--------------------------------------------|--------------------|
+| Part1       | `julia-integration`, `deepmrsi-fitting`    | needs a fork, upstream is phipzl |
+| Part2       | `container-portability`                    | needs a fork, upstream is phipzl |
+| MRSIdeepFIRE| `claude/container-fitting-selection-20260817` | own repo        |
+| MRSI.jl     | `claude/optional-patrefscan-20260818`      | own repo           |
+
+Part1 and Part2 are maintained by someone else, so either push to a fork and
+point the ref at it, or clone them from `korbinian90/mrsi_pipeline_neurodesk`,
+which carries a vendored copy of both.
+
+Two further couplings to know about:
+
+- The `legacy_7T` WALINET name is only selectable on a MRSIdeepFIRE ref that
+  carries `MODEL_LAYOUTS` in `walinet/package_config.py`. On `master` that code
+  does not exist and `walinet/package_config.json` still points at `7T_Final`,
+  a directory that is not in git, so an image built from `master` will fail at
+  run time when it tries to load the model.
+- The MRSI.jl water-reference weights do not reach MRSIdeepFIRE through
+  `MRSIJL_REF`. `offline_pipeline/MRSI` is a vendored `git subtree`, so the
+  MRSI.jl branch has to be merged and then pulled with
+  `git subtree pull --prefix=offline_pipeline/MRSI mrsi-upstream main --squash`.
 
 ## Exporting for the collaborator
 

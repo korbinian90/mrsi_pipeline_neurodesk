@@ -273,9 +273,18 @@ RUN pip install --no-cache-dir --upgrade pip setuptools==81.0.0 wheel \
 # to <ref> for tags and SHAs, which have no origin/ prefix. A ref that is none
 # of the three still fails the build, as it should.
 # ---------------------------------------------------------------------------
-ARG DEEPFIRE_REF=main
+# Defaults are the upstream default branches, verified to exist with
+# "git ls-remote --heads" on 2026-08-18. They build a WORKING image but NOT the
+# target-A feature set: the Julia dispatch (-S), the deep-learning fit path
+# (-Q), the WALINET model selector and the MRSI.jl water-reference weights all
+# live on feature branches that are not pushed yet. Until they are, override
+# each ref below. See container/README.md, "Building with the target-A work".
+#
+# Do NOT default DEEPFIRE_REF to "main" or PART1_REF to "julia-reco": neither
+# ref exists, and the clone layer fails the build.
+ARG DEEPFIRE_REF=master
 ARG MRSIJL_REF=main
-ARG PART1_REF=julia-reco
+ARG PART1_REF=master
 ARG PART2_REF=master
 
 RUN mkdir -p -m 0700 /root/.ssh && ssh-keyscan -t rsa,ecdsa,ed25519 github.com >> /root/.ssh/known_hosts
