@@ -307,10 +307,9 @@ RUN iconv -f UTF-16 -t UTF-8 /opt/deepmrsi/deepMRSI/requirements.txt > /tmp/deep
     && python -c 'import torch; print("torch", torch.__version__, "cuda build", torch.version.cuda)'
 
 # WALINET model directory. The package resolves its weights relative to
-# walinet/models, and the large experiment directories (7T_Final, ~1 GB) are
-# gitignored upstream, so they are not in the clone and have to be supplied at
-# run time. Relocating the directory to a writable path outside the package and
-# symlinking it back lets a run mount or copy weights in without a rebuild.
+# walinet/models and has no setting for that location, so the directory is
+# moved to a writable path outside the package and symlinked back. That keeps
+# the weights readable and writable for an Apptainer run, which is not root.
 #
 # Build-time only, deliberately not an ENV: nothing reads this variable, the
 # relocation works purely through the symlink below, so exporting it would
@@ -320,6 +319,24 @@ RUN WALINET_PKG=/opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/waline
     && mv "${WALINET_PKG}/models" "${WALINET_MODEL_DIR}" \
     && ln -s "${WALINET_MODEL_DIR}" "${WALINET_PKG}/models" \
     && chmod -R a+rwX "${WALINET_MODEL_DIR}"
+
+# Bake the WALINET weights in. The image is handed over as a tarball or a .sif,
+# so nothing may be fetched or mounted at run time.
+#
+# legacy_7T arrives with the checkout above (it is tracked in MRSIdeepFIRE) and
+# is selectable with no user action. final_7T and final_3T are not in any git
+# repository and are staged by hand into container/walinet_models/<name>/
+# before the build; see that directory's README.
+#
+# The staging tree is bind mounted from the build context instead of COPYed in.
+# A COPY layer would keep a second copy of the ~1 GB final_7T checkpoint in the
+# shipped image forever, because moving it into place afterwards cannot remove
+# it from the layer underneath. BuildKit is already required for the
+# --mount=type=ssh clones above, so this adds no new constraint. Nothing is
+# staged in a fresh clone, and the step is a no-op then.
+RUN --mount=type=bind,source=walinet_models,target=/tmp/walinet_staging \
+    --mount=type=bind,source=install_walinet_models.sh,target=/tmp/install_walinet_models.sh \
+    bash /tmp/install_walinet_models.sh /tmp/walinet_staging "${WALINET_MODEL_DIR}"
 
 # Julia packages: MRSI.jl developed into the shared depot so that both the
 # Part1 reconstruction (which activates JULIA_MRSI_PKG) and a bare `julia` see
