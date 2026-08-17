@@ -273,19 +273,28 @@ RUN pip install --no-cache-dir --upgrade pip setuptools==81.0.0 wheel \
 # to <ref> for tags and SHAs, which have no origin/ prefix. A ref that is none
 # of the three still fails the build, as it should.
 # ---------------------------------------------------------------------------
-# Defaults are the upstream default branches, verified to exist with
-# "git ls-remote --heads" on 2026-08-18. They build a WORKING image but NOT the
-# target-A feature set: the Julia dispatch (-S), the deep-learning fit path
-# (-Q), the WALINET model selector and the MRSI.jl water-reference weights all
-# live on feature branches that are not pushed yet. Until they are, override
-# each ref below. See container/README.md, "Building with the target-A work".
+# All four refs verified to exist with "git ls-remote --heads" on 2026-08-18.
 #
-# Do NOT default DEEPFIRE_REF to "main" or PART1_REF to "julia-reco": neither
-# ref exists, and the clone layer fails the build.
+# Part1 and Part2 track "neurodesk", which is the branch this container is built
+# from. It is master plus the target-A work: the Julia dispatch (-S), the
+# InitialParameters.json sidecar and the deep-learning fit path (-Q).
+#
+# The two remaining refs are default branches and do NOT yet carry their half of
+# the feature set, so override them for a shipping build. See container/README.md,
+# "Building with the target-A work":
+#   DEEPFIRE_REF needs the branch with the WALINET model selector, otherwise
+#   package_config.json still points at a 7T_Final directory that is not in git
+#   and model loading fails at run time.
+#   MRSIJL_REF does not carry the water-reference coil weights into the image at
+#   all: offline_pipeline/MRSI is a vendored subtree of MRSI.jl, so that work
+#   arrives through a subtree pull into MRSIdeepFIRE, not through this ref.
+#
+# Do NOT set DEEPFIRE_REF to "main" or PART1_REF to "julia-reco": neither ref
+# exists, and the clone layer fails the build.
 ARG DEEPFIRE_REF=master
 ARG MRSIJL_REF=main
-ARG PART1_REF=master
-ARG PART2_REF=master
+ARG PART1_REF=neurodesk
+ARG PART2_REF=neurodesk
 
 RUN mkdir -p -m 0700 /root/.ssh && ssh-keyscan -t rsa,ecdsa,ed25519 github.com >> /root/.ssh/known_hosts
 

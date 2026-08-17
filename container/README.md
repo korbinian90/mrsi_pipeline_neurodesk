@@ -66,24 +66,22 @@ docker run --rm mrsi-pipeline:local bash -lc \
 
 ### Building with the target-A work
 
-The default refs build a working image, but one WITHOUT the target-A feature
-set. The Julia dispatch (`-S`), the deep-learning fit path (`-Q`), the WALINET
-model selector and the MRSI.jl water-reference weights all live on feature
-branches that exist only on the workstation. A clone inside the build cannot
-see them, so they must be pushed first:
+Part1 and Part2 default to `neurodesk`, which is pushed and already carries
+their half of the target-A work, so nothing extra is needed for those two:
 
-| repository  | branch                                     | pushable to        |
-|-------------|--------------------------------------------|--------------------|
-| Part1       | `julia-integration`, `deepmrsi-fitting`    | needs a fork, upstream is phipzl |
-| Part2       | `container-portability`                    | needs a fork, upstream is phipzl |
-| MRSIdeepFIRE| `claude/container-fitting-selection-20260817` | own repo        |
-| MRSI.jl     | `claude/optional-patrefscan-20260818`      | own repo           |
+| repository   | branch the image uses  | carries                                    |
+|--------------|------------------------|--------------------------------------------|
+| Part1        | `neurodesk`            | `-S` Julia dispatch, JSON sidecar, `-Q` path |
+| Part2        | `neurodesk`            | `MNI_ATLAS_DIR` portability                 |
+| MRSIdeepFIRE | `master` (override me) | NOT the WALINET selector                    |
+| MRSI.jl      | `main` (override me)   | NOT the water-reference weights              |
 
-Part1 and Part2 are maintained by someone else, so either push to a fork and
-point the ref at it, or clone them from `korbinian90/mrsi_pipeline_neurodesk`,
-which carries a vendored copy of both.
+`neurodesk` is master plus a merge of the feature branches, so it is a strict
+superset of upstream. The unmerged review branches are `julia-integration`
+(the `-S` wiring alone) and `deepmrsi-fitting` (the `-Q` path on top), both
+pushed to phipzl, plus `container-portability` on Part2.
 
-Two further couplings to know about:
+The other two repositories still need an explicit ref:
 
 - The `legacy_7T` WALINET name is only selectable on a MRSIdeepFIRE ref that
   carries `MODEL_LAYOUTS` in `walinet/package_config.py`. On `master` that code
