@@ -98,6 +98,18 @@ pull, so the image tracks default branches again.
 
 ## Exporting for the collaborator
 
+Measured on the first verified build: **43.9 GB** unpacked in the local image
+store, **11.9 GB** as a `docker save | gzip -1` stream. Slower compression
+gains a little more. For comparison, the published `vnmd/mrsiproc_0.2.0` is
+25.49 GB on Docker Hub, which is also a compressed figure, so this image is
+roughly half the size to ship. Do not compare the 43.9 GB against that number:
+one is unpacked and the other is compressed.
+
+Two layers dominate and neither is removable without a bigger change: the
+MATLAB Runtime (10.3 GB, needed by every compiled binary) and the FSL base
+image (about 12.4 GB, of which the pipeline uses little more than `bet`).
+Swapping the base image is the only remaining large saving.
+
 Docker tarball:
 
 ```bash
@@ -260,53 +272,68 @@ Be aware of what that means concretely:
   That adds roughly 2.5 GB. The host still needs its own NVIDIA driver; nothing
   in the image provides one.
 
+## Verifying a built image
+
+```powershell
+docker run --rm -v "${PWD}/container:/smoke:ro" mrsi-pipeline:local bash /smoke/smoke_test.sh
+```
+
+`smoke_test.sh` checks that every component is present *and runs*, and exits
+non-zero if anything fails. It covers the external tools, both Julia entry
+points, the deepmrsi imports, the fitting backends, the WALINET model names,
+the compiled MATLAB binaries, and that the container environment survives
+being sourced through `InstallProgramPaths.sh`.
+
+## What the first build turned up
+
+All four were silent failures: the image built and looked complete.
+
+1. **Julia segfaulted under the MATLAB Runtime.** The runtime ships its own
+   `libstdc++`/`libgcc_s` in `sys/os/glnxa64`, that directory is on
+   `LD_LIBRARY_PATH`, and Julia bound to those instead of its own and died with
+   SIGSEGV during precompilation. `julia` is therefore a wrapper that strips
+   `MATLAB_Runtime` entries. This was not only a build problem: Part1's
+   `InstallProgramPaths.sh` puts the same directory on the path before calling
+   `run_julia_reco.jl`, so the Julia reconstruction would have died at run time
+   too. The build keeps a probe that records the unwrapped binary still failing,
+   so the wrapper does not become folklore.
+2. **The compiled MATLAB binaries are not in git.** Both repositories gitignore
+   `Matlab_Compiled/`, so cloning them can never produce the binaries the
+   pipeline executes. They are vendored in this repository and copied in. This
+   also broke the *Julia* route, because `run_matlab.sh` refuses to use the
+   Julia output unless `julia_write_lcm_files` is present.
+3. **`Part1/MatlabFunctions/MRSIMatlabFunctions` is a submodule** and came up
+   empty, so the entire MATLAB function library was missing. The clone now runs
+   `submodule update --init --recursive`.
+4. **`deep_crt_mrsi.deepmrsi` imports `ismrmrd_server.mrdhelper`**, which is a
+   plain directory in the checkout rather than an installed package. Part1's
+   `run_deepmrsi.py` imports exactly that module, so the whole `-Q` route failed
+   at import. Fixed with `PYTHONPATH`, asserted at build time.
+
 ## Not yet verified
 
 Written honestly, because none of the following has been proven by a run:
 
-1. **The image has been authored, not built.** No `docker build` was executed,
-   so download URLs, apt names on this particular base image, and the Julia and
-   pip resolution steps are unproven. Expect the first build to need fixes.
-2. **The upstream `InstallProgramPaths.sh` files carry Vienna site paths.**
-   Both `Part1_ProcessMRSI.sh` and `Part2_EvaluateMRSI.sh` source their own
-   repository copy, which overrides the container environment with
-   `matlabp=/bilbo/usr/local/matlab2022a/bin/matlab`,
-   `LCM_Path=/usr/local/lcmodel/bin/lcmodel`, `RunLCModelOn="lcm"` (an SSH hop
-   to another host), a `/ceph/...` `tmp_folder`, and
-   `. /opt/minc/minc-toolkit-config.sh` (the toolkit lands in
-   `/opt/minc/1.9.15/` here). The merged `mrsi_pipeline_neurodesk` repository
-   has a container-adapted version of that file; the pinned upstream repos do
-   not. Until upstream grows a container profile, mount a corrected copy over
-   `/opt/Part1/InstallProgramPaths.sh` and `/opt/Part2/InstallProgramPaths.sh`.
-3. **Part2 upstream ships no `Matlab_Compiled` directory** on any branch that
-   was checked. The compiled Part2 binaries currently exist only in the merged
-   `mrsi_pipeline_neurodesk` repository, so `-l` (compiled MATLAB) will not
-   find them in this image unless they are mounted in.
-4. **`julia_write_lcm_files`**, which `run_matlab.sh` calls after a Julia
-   reconstruction, is likewise only in the merged repository's
-   `matlab_compiled/`, not in Part1's `Matlab_Compiled`.
-5. **`MNI_ATLAS_DIR` is not consumed by any script yet.**
-   `Part2/Bash_Functions/Coreg/coregistration.sh` still hardcodes
-   `/net/mri.meduniwien.ac.at/.../lab/$atlas_type`. The variable is set here so
-   that upstream can start reading it; the MNI152 09a atlas is present under
-   it, while the MNI305 `average305_t1_tal_lin.mnc` alternative was not
-   confirmed to ship with minc-toolkit.
-6. **The dcm2niix rationale comes from the newer upstream conversion path.**
-   The Part1 checkout inspected while writing this still calls `dcm2mnc` in
-   `create_mask.sh`, so keeping dcm2niix is what makes the newer path work, not
-   something the current pinned default ref exercises.
-7. **`JULIA_VERSION` (1.12.6) was read from the MRSIdeepFIRE
+1. **No end-to-end reconstruction has been run.** The smoke test proves every
+   component loads; it does not prove the pipeline produces correct output on a
+   real dataset. That is the next step, on Tom Shaw's 7T data.
+2. **The `final_7T` and `final_3T` WALINET weights have never been installed.**
+   Neither was available when the staging step was written, so it was exercised
+   only against fixture directories with the right file names. `legacy_7T`,
+   which comes from the checkout, is the only model any build so far installed.
+   All three names are selectable in `MODEL_LAYOUTS`.
+3. **The GPU variant has not been built.** Only the default CPU image exists.
+   `TORCH_INDEX_URL` pointing at a CUDA index is untested here.
+4. **`MNI_ATLAS_DIR` is still not consumed by Part2's `coregistration.sh`**,
+   which hardcodes `/net/mri.meduniwien.ac.at/...`. The variable is set and the
+   atlas is present so upstream can start reading it.
+5. **`JULIA_VERSION` (1.12.6) was read from the MRSIdeepFIRE
    `offline_pipeline/Manifest.toml`.** If `DEEPFIRE_REF` moves to a manifest
    with another `julia_version`, bump the arg too, or Julia re-resolves the
    manifest instead of using the pinned versions.
-8. **The base image's Python version is not pinned by us.** The build asserts
-   `python3 >= 3.9` early, since numpy 1.26.4 and the torch 2.3.1 wheels need
-   it. If `vnmd/fsl_6.0.7.1` ships something older, that assertion is where the
-   build stops.
-9. **The default refs are branches, not commits.** Two builds a week apart can
-   differ. Pass SHAs for anything shipped.
-10. **The WALINET staging path has never seen the real `final_7T` or
-    `final_3T` weights.** Neither was available when it was written, so it was
-    exercised only against fixture directories carrying the right file names,
-    plus `bash -n` and `docker build --check`. `legacy_7T`, which comes from
-    the checkout, is the only model any build so far could have installed.
+6. **`matlabp` still points at a Vienna path.** Nothing in this image runs
+   uncompiled MATLAB, so it is left at its default; only the compiled route
+   (`-l`) is expected to work.
+7. **The default refs are branches, not commits.** Two builds a week apart can
+   differ. The verified build was pinned with
+   `PART1_REF=afa7ac4 PART2_REF=0f4ffe3`; pass SHAs for anything shipped.
