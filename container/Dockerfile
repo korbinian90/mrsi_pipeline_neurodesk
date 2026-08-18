@@ -275,24 +275,29 @@ RUN pip install --no-cache-dir --upgrade pip setuptools==81.0.0 wheel \
 # ---------------------------------------------------------------------------
 # All four refs verified to exist with "git ls-remote --heads" on 2026-08-18.
 #
-# Part1 and Part2 track "neurodesk", which is the branch this container is built
-# from. It is master plus the target-A work: the Julia dispatch (-S), the
+# Every ref below is the branch that actually carries the target-A work, so a
+# plain "./build.sh" produces the shippable image with no overrides.
+#
+# Part1 and Part2 track "neurodesk": master plus the Julia dispatch (-S), the
 # InitialParameters.json sidecar and the deep-learning fit path (-Q).
 #
-# The two remaining refs are default branches and do NOT yet carry their half of
-# the feature set, so override them for a shipping build. See container/README.md,
-# "Building with the target-A work":
-#   DEEPFIRE_REF needs the branch with the WALINET model selector, otherwise
-#   package_config.json still points at a 7T_Final directory that is not in git
-#   and model loading fails at run time.
-#   MRSIJL_REF does not carry the water-reference coil weights into the image at
-#   all: offline_pipeline/MRSI is a vendored subtree of MRSI.jl, so that work
-#   arrives through a subtree pull into MRSIdeepFIRE, not through this ref.
+# DEEPFIRE_REF carries the WALINET model selector. On "master" the selector does
+# not exist and walinet/package_config.json still names a 7T_Final directory
+# that is not in git, so an image built from master dies at run time when it
+# loads the model.
+#
+# MRSIJL_REF and the vendored offline_pipeline/MRSI subtree inside MRSIdeepFIRE
+# must name the SAME MRSI.jl commit. The image installs MRSI.jl twice: once at
+# /opt/MRSI.jl for Part1 (JULIA_MRSI_PKG) and once as the subtree for the
+# deepmrsi offline pipeline. If the two disagree, the Julia reconstruction that
+# Part1 runs and the one the offline pipeline runs are different code, which is
+# invisible until the two produce different numbers. DEEPFIRE_REF's subtree is
+# synced to the ref below, so keep them in step when bumping either.
 #
 # Do NOT set DEEPFIRE_REF to "main" or PART1_REF to "julia-reco": neither ref
 # exists, and the clone layer fails the build.
-ARG DEEPFIRE_REF=master
-ARG MRSIJL_REF=main
+ARG DEEPFIRE_REF=claude/container-fitting-selection-20260817
+ARG MRSIJL_REF=claude/optional-patrefscan-20260818
 ARG PART1_REF=neurodesk
 ARG PART2_REF=neurodesk
 

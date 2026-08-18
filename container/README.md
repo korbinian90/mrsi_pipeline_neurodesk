@@ -66,32 +66,35 @@ docker run --rm mrsi-pipeline:local bash -lc \
 
 ### Building with the target-A work
 
-Part1 and Part2 default to `neurodesk`, which is pushed and already carries
-their half of the target-A work, so nothing extra is needed for those two:
+Every ref defaults to the branch that carries its half of the work, so a plain
+`./build.sh` produces the shippable image. Nothing has to be overridden.
 
-| repository   | branch the image uses  | carries                                    |
-|--------------|------------------------|--------------------------------------------|
-| Part1        | `neurodesk`            | `-S` Julia dispatch, JSON sidecar, `-Q` path |
-| Part2        | `neurodesk`            | `MNI_ATLAS_DIR` portability                 |
-| MRSIdeepFIRE | `master` (override me) | NOT the WALINET selector                    |
-| MRSI.jl      | `main` (override me)   | NOT the water-reference weights              |
+| repository   | default ref                              | carries                                      |
+|--------------|------------------------------------------|----------------------------------------------|
+| Part1        | `neurodesk`                              | `-S` Julia dispatch, JSON sidecar, `-Q` path |
+| Part2        | `neurodesk`                              | `MNI_ATLAS_DIR` portability                  |
+| MRSIdeepFIRE | `claude/container-fitting-selection-20260817` | WALINET selector, fitting selector, MRSI subtree |
+| MRSI.jl      | `claude/optional-patrefscan-20260818`    | optional PATREFSCAN, water-reference weights |
 
 `neurodesk` is master plus a merge of the feature branches, so it is a strict
 superset of upstream. The unmerged review branches are `julia-integration`
 (the `-S` wiring alone) and `deepmrsi-fitting` (the `-Q` path on top), both
 pushed to phipzl, plus `container-portability` on Part2.
 
-The other two repositories still need an explicit ref:
+Two couplings are load-bearing when bumping refs:
 
-- The `legacy_7T` WALINET name is only selectable on a MRSIdeepFIRE ref that
-  carries `MODEL_LAYOUTS` in `walinet/package_config.py`. On `master` that code
-  does not exist and `walinet/package_config.json` still points at `7T_Final`,
-  a directory that is not in git, so an image built from `master` will fail at
-  run time when it tries to load the model.
-- The MRSI.jl water-reference weights do not reach MRSIdeepFIRE through
-  `MRSIJL_REF`. `offline_pipeline/MRSI` is a vendored `git subtree`, so the
-  MRSI.jl branch has to be merged and then pulled with
-  `git subtree pull --prefix=offline_pipeline/MRSI mrsi-upstream main --squash`.
+- `MRSIJL_REF` and the `offline_pipeline/MRSI` subtree inside `MRSIdeepFIRE`
+  must name the same MRSI.jl commit. The image installs MRSI.jl twice, at
+  `/opt/MRSI.jl` for Part1 and as the subtree for the deepmrsi offline
+  pipeline. Divergence is invisible until the two paths return different
+  numbers. Re-sync with
+  `git subtree pull --prefix=offline_pipeline/MRSI mrsi-upstream <ref> --squash`.
+- The WALINET model names selectable at run time come from `MODEL_LAYOUTS` in
+  `walinet/package_config.py`, which only exists on the MRSIdeepFIRE ref above.
+
+Once the MRSI.jl and MRSIdeepFIRE branches are merged to their default
+branches, reset the two refs to `main` and `master` and re-run the subtree
+pull, so the image tracks default branches again.
 
 ## Exporting for the collaborator
 
