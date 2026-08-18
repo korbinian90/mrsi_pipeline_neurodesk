@@ -468,6 +468,24 @@ ENV JULIA_MRSI_PKG=/opt/MRSI.jl \
     MatlabCompiledFunctions=Matlab_Compiled
 ENV PATH="/opt/Part1:/opt/Part2:${PATH}"
 
+# Site paths consumed by both InstallProgramPaths.sh files.
+#
+# Those scripts are sourced by Part1_ProcessMRSI.sh and Part2_EvaluateMRSI.sh
+# and used to overwrite whatever the environment said, which defeated every
+# variable set above. They now fall back to their Vienna defaults only when
+# the variable is unset, so setting them here is what makes the checkout run
+# in this image. Requires Part1/Part2 at neurodesk (or later).
+#
+# RunLCModelOn and synthsegp are deliberately EMPTY, not unset: empty means
+# run LCModel locally rather than over ssh, and skip SynthSeg, which this
+# image cannot do since FreeSurfer is not installed.
+ENV betp=/opt/fsl-6.0.7.1/bin/bet \
+    mincpath=/opt/minc-${MINC_VERSION} \
+    RunLCModelOn="" \
+    synthsegp="" \
+    tmp_folder=/tmp/mrsi_processing
+RUN mkdir -p /tmp/mrsi_processing && chmod a+rwX /tmp/mrsi_processing
+
 # ---------------------------------------------------------------------------
 # Fitting backend and GPU behaviour
 #

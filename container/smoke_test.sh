@@ -90,6 +90,30 @@ check "Part1 compiled bins"  bash -c 'ls /opt/Part1/Matlab_Compiled/* >/dev/null
 check "Part2 compiled bins"  bash -c 'ls /opt/Part2/Matlab_Compiled/* >/dev/null 2>&1 && echo "$(ls /opt/Part2/Matlab_Compiled | wc -l) files"'
 
 echo
+echo "== environment survives InstallProgramPaths.sh =="
+# Both entry-point scripts source these, and they used to overwrite the
+# container environment with Vienna site paths. Anything failing here means the
+# image is pinned to a Part1/Part2 ref older than the override change, and the
+# pipeline would try to ssh to "lcm" and run Julia with an empty package path.
+survives() {
+    local label="$1" file="$2" var="$3" want="$4"
+    local got
+    got=$(set +u; . "$file" >/dev/null 2>&1; eval "printf '%s' \"\${$var}\"")
+    if [ "$got" = "$want" ]; then
+        printf '  ok    %-38s %s=%s\n' "$label" "$var" "${got:-<empty>}"
+    else
+        printf '  FAIL  %-38s %s: want [%s] got [%s]\n' "$label" "$var" "$want" "$got"
+        fails=$((fails + 1))
+    fi
+}
+survives "Part1 keeps JULIA_MRSI_PKG"   /opt/Part1/InstallProgramPaths.sh JULIA_MRSI_PKG     /opt/MRSI.jl
+survives "Part1 keeps JULIA_DEEPMRSI"   /opt/Part1/InstallProgramPaths.sh JULIA_DEEPMRSI_PKG /opt/deepmrsi/offline_pipeline
+survives "Part1 keeps LCM_Path"         /opt/Part1/InstallProgramPaths.sh LCM_Path           "${LCM_Path}"
+survives "Part1 runs LCModel locally"   /opt/Part1/InstallProgramPaths.sh RunLCModelOn       ""
+survives "Part2 skips synthseg"         /opt/Part2/InstallProgramPaths.sh synthsegp          ""
+survives "Part2 keeps MNI_ATLAS_DIR"    /opt/Part2/InstallProgramPaths.sh MNI_ATLAS_DIR      "${MNI_ATLAS_DIR}"
+
+echo
 if [ "$fails" -eq 0 ]; then
     echo "ALL CHECKS PASSED"
 else
