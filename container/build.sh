@@ -81,7 +81,7 @@ DOCKER_BUILDKIT=1 docker build \
     -t "${IMAGE}" \
     -f "${SCRIPT_DIR}/Dockerfile" \
     "$@" \
-    "${SCRIPT_DIR}"
+    "${SCRIPT_DIR}/.."
 
 echo
 echo "Done. Record the refs that went in:"

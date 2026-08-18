@@ -385,8 +385,8 @@ RUN WALINET_PKG=/opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/waline
 # still works. The image for the collaborator is built with
 #   --build-arg REQUIRE_WALINET_MODELS=all
 ARG REQUIRE_WALINET_MODELS=legacy_7T
-RUN --mount=type=bind,source=walinet_models,target=/tmp/walinet_staging \
-    --mount=type=bind,source=install_walinet_models.sh,target=/tmp/install_walinet_models.sh \
+RUN --mount=type=bind,source=container/walinet_models,target=/tmp/walinet_staging \
+    --mount=type=bind,source=container/install_walinet_models.sh,target=/tmp/install_walinet_models.sh \
     bash /tmp/install_walinet_models.sh /tmp/walinet_staging "${WALINET_MODEL_DIR}" \
          "${REQUIRE_WALINET_MODELS}"
 
@@ -410,12 +410,35 @@ RUN echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" \
 RUN --mount=type=ssh \
     git clone git@github.com:phipzl/Part1_Reco_LCModel_MUSICAL_Streamlined_Git.git /opt/Part1 \
     && { git -C /opt/Part1 checkout --detach "origin/${PART1_REF}" 2>/dev/null \
-         || git -C /opt/Part1 checkout --detach "${PART1_REF}"; }
+         || git -C /opt/Part1 checkout --detach "${PART1_REF}"; } \
+    && git -C /opt/Part1 submodule update --init --recursive
 
 RUN --mount=type=ssh \
     git clone git@github.com:phipzl/Part2_Registration_Evaluation_Streamlined_Git.git /opt/Part2 \
     && { git -C /opt/Part2 checkout --detach "origin/${PART2_REF}" 2>/dev/null \
          || git -C /opt/Part2 checkout --detach "${PART2_REF}"; }
+
+# ---------------------------------------------------------------------------
+# Compiled MATLAB binaries
+#
+# Part1 and Part2 both gitignore Matlab_Compiled/, so cloning them can never
+# produce the binaries the pipeline actually executes. They are vendored in
+# this repository instead and copied in here, about 4 MB in total.
+#
+# This is not only the MATLAB route's problem. run_matlab.sh refuses to use
+# the Julia reconstruction unless julia_write_lcm_files is present, because
+# that is what turns the Julia output into LCModel input, so without these
+# files the container silently falls back to MATLAB for everything.
+#
+# julia_write_lcm_files exists only in the older top-level matlab_compiled/
+# directory; the other binaries are taken from the newer per-part ones.
+COPY Part1/Matlab_Compiled/ /opt/Part1/Matlab_Compiled/
+COPY Part2/Matlab_Compiled/ /opt/Part2/Matlab_Compiled/
+COPY matlab_compiled/julia_write_lcm_files /opt/Part1/Matlab_Compiled/julia_write_lcm_files
+RUN chmod -R a+rX /opt/Part1/Matlab_Compiled /opt/Part2/Matlab_Compiled \
+    && chmod a+rx /opt/Part1/Matlab_Compiled/* /opt/Part2/Matlab_Compiled/* \
+    && test -x /opt/Part1/Matlab_Compiled/julia_write_lcm_files \
+    && test -s /opt/Part1/MatlabFunctions/MRSIMatlabFunctions/SignalPreProcessing/HammingFilter/HammingFilter.m
 
 # ---------------------------------------------------------------------------
 # Pipeline environment

@@ -1,0 +1,6 @@
+# The build context is the repository root so the vendored Matlab_Compiled
+# trees are reachable by COPY. Nothing below is needed inside the image.
+.git
+parity/io
+Licences
+README.md
