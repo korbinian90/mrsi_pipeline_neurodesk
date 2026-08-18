@@ -240,8 +240,27 @@ RUN curl -fL -o /tmp/mritools.tar.gz "https://github.com/korbinian90/CompileMRI.
 # instead of using the pinned versions.
 # ---------------------------------------------------------------------------
 ENV JULIA_DEPOT_PATH=/opt/julia_depot
+#
+# julia is installed behind a wrapper rather than a symlink. The MATLAB
+# Runtime ships its own libstdc++, libgcc_s and libgfortran in
+# sys/os/glnxa64, and that directory is on LD_LIBRARY_PATH both here and at
+# run time, because Part1's InstallProgramPaths.sh puts it there before
+# calling run_julia_reco.jl. Julia then binds to those instead of the ones it
+# ships with and dies with SIGSEGV midway through precompilation. Julia needs
+# nothing from LD_LIBRARY_PATH: its dependencies are either bundled in
+# julia-*/lib or come from Pkg artifacts.
 RUN curl -fL "https://julialang-s3.julialang.org/bin/linux/x64/${JULIA_VERSION%.*}/julia-${JULIA_VERSION}-linux-x86_64.tar.gz" | tar xz -C /opt \
-    && ln -s /opt/julia-${JULIA_VERSION}/bin/julia /usr/local/bin/julia
+    && printf '%s\n' \
+        '#!/bin/sh' \
+        '# Drop MATLAB Runtime entries from LD_LIBRARY_PATH; see the note above.' \
+        'if [ -n "${LD_LIBRARY_PATH:-}" ]; then' \
+        '    LD_LIBRARY_PATH=$(printf %s "$LD_LIBRARY_PATH" | tr ":" "\n" | grep -v MATLAB_Runtime | paste -sd: -)' \
+        '    export LD_LIBRARY_PATH' \
+        'fi' \
+        'exec /opt/julia-JULIAVER/bin/julia "$@"' \
+        > /usr/local/bin/julia \
+    && sed -i "s|JULIAVER|${JULIA_VERSION}|" /usr/local/bin/julia \
+    && chmod +x /usr/local/bin/julia
 
 # ---------------------------------------------------------------------------
 # Python environment for deepmrsi
@@ -376,7 +395,15 @@ RUN --mount=type=bind,source=walinet_models,target=/tmp/walinet_staging \
 # it, plus the deepmrsi offline pipeline project. Note that the offline
 # pipeline resolves MRSI through its own subtree copy under
 # offline_pipeline/MRSI, so it follows DEEPFIRE_REF and not MRSIJL_REF.
-RUN julia --startup-file=no -e 'using Pkg; Pkg.develop(path="/opt/MRSI.jl"); Pkg.precompile()' \
+#
+# The probe records whether the unwrapped binary really is broken here, so
+# the reason for the wrapper stays verifiable instead of becoming folklore.
+# It never fails the build.
+RUN echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" \
+    && { /opt/julia-${JULIA_VERSION}/bin/julia --startup-file=no -e 'using Pkg' >/dev/null 2>&1 \
+         && echo "PROBE: unwrapped julia OK" \
+         || echo "PROBE: unwrapped julia FAILED (LD_LIBRARY_PATH conflict)"; } \
+    && julia --startup-file=no -e 'using Pkg; Pkg.develop(path="/opt/MRSI.jl"); Pkg.precompile()' \
     && julia --startup-file=no --project=/opt/deepmrsi/offline_pipeline -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()' \
     && chmod -R a+rwX /opt/julia_depot
 
