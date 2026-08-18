@@ -45,13 +45,30 @@ for var in PART1_REF PART2_REF DEEPFIRE_REF MRSIJL_REF TORCH_INDEX_URL REQUIRE_W
     fi
 done
 
-if [[ -z "${SSH_AUTH_SOCK:-}" ]]; then
-    echo "ERROR: no SSH agent found (SSH_AUTH_SOCK is empty)." >&2
-    echo "       'docker build --ssh default' needs a running agent that can" >&2
-    echo "       read the private Part1, Part2 and MRSIdeepFIRE repositories." >&2
-    echo "       Start one with: eval \"\$(ssh-agent -s)\" && ssh-add" >&2
-    exit 1
-fi
+# Windows has no SSH_AUTH_SOCK: the OpenSSH agent is a named pipe, and Docker
+# Desktop forwards it when the pipe is named explicitly. Detect that case
+# rather than failing the guard below on an otherwise working setup.
+SSH_FORWARD="default"
+case "$(uname -s 2>/dev/null || echo unknown)" in
+    MINGW*|MSYS*|CYGWIN*)
+        SSH_FORWARD='default=\\.\pipe\openssh-ssh-agent'
+        if ! sc query ssh-agent 2>/dev/null | grep -q RUNNING; then
+            echo "ERROR: the Windows ssh-agent service is not running." >&2
+            echo "       Start it with: Start-Service ssh-agent" >&2
+            echo "       then load a key with: ssh-add" >&2
+            exit 1
+        fi
+        ;;
+    *)
+        if [[ -z "${SSH_AUTH_SOCK:-}" ]]; then
+            echo "ERROR: no SSH agent found (SSH_AUTH_SOCK is empty)." >&2
+            echo "       'docker build --ssh default' needs a running agent that can" >&2
+            echo "       read the private Part1, Part2 and MRSIdeepFIRE repositories." >&2
+            echo "       Start one with: eval \"\$(ssh-agent -s)\" && ssh-add" >&2
+            exit 1
+        fi
+        ;;
+esac
 
 echo "Building ${IMAGE}"
 for var in PART1_REF PART2_REF DEEPFIRE_REF MRSIJL_REF TORCH_INDEX_URL REQUIRE_WALINET_MODELS; do
@@ -59,7 +76,7 @@ for var in PART1_REF PART2_REF DEEPFIRE_REF MRSIJL_REF TORCH_INDEX_URL REQUIRE_W
 done
 
 DOCKER_BUILDKIT=1 docker build \
-    --ssh default \
+    --ssh "${SSH_FORWARD}" \
     ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"} \
     -t "${IMAGE}" \
     -f "${SCRIPT_DIR}/Dockerfile" \
