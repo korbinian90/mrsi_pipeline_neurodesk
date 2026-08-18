@@ -348,6 +348,17 @@ RUN iconv -f UTF-16 -t UTF-8 /opt/deepmrsi/deepMRSI/requirements.txt > /tmp/deep
     && pip install --no-cache-dir -e /opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/walinet \
     && python -c 'import torch; print("torch", torch.__version__, "cuda build", torch.version.cuda)'
 
+# deep_crt_mrsi/deepmrsi.py imports ismrmrd_server.mrdhelper at module scope,
+# and ismrmrd_server is a plain directory inside the checkout rather than an
+# installed package, so nothing puts it on sys.path. Part1's run_deepmrsi.py
+# imports exactly that module, so without this the entire -Q deep-learning
+# route dies at import time with ModuleNotFoundError.
+ENV PYTHONPATH=/opt/deepmrsi/python-ismrmrd-server/server
+
+# Fail the build here rather than at the end of somebody's reconstruction.
+RUN python -c 'from deep_crt_mrsi.deepmrsi import process_deep_mrsi_offline' \
+    && echo "deepmrsi offline entry point imports"
+
 # WALINET model directory. The package resolves its weights relative to
 # walinet/models and has no setting for that location, so the directory is
 # moved to a writable path outside the package and symlinked back. That keeps

@@ -59,6 +59,15 @@ check "walinet"            python -c 'import walinet; print("ok")'
 check "forD"               python -c 'import forD; print("ok")'
 check "forD_gpu_fit"       python -c 'import forD_gpu_fit; print("ok")'
 
+# The entry point Part1's run_deepmrsi.py actually calls. It pulls in
+# ismrmrd_server.mrdhelper, which only resolves via PYTHONPATH.
+check "deepmrsi offline entry point" \
+    python -c 'from deep_crt_mrsi.deepmrsi import process_deep_mrsi_offline; print("ok")'
+check "fitting backends selectable" \
+    python -c 'from deep_crt_mrsi import deepmrsi as d; print(d._resolve_auto_fitting("auto"), d._gpu_fit_device())'
+check "walinet model names" \
+    python -c 'from walinet.package_config import MODEL_LAYOUTS; print(",".join(sorted(MODEL_LAYOUTS)))'
+
 echo
 echo "== walinet models =="
 if [ -d /opt/walinet_models ]; then
