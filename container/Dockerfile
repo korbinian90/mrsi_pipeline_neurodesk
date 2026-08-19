@@ -39,7 +39,11 @@ ARG MINC_VERSION=1.9.15
 ARG LCMODEL_VERSION=6.3
 ARG MATLAB_VERSION=2023a
 ARG MATLAB_UPDATE_VERSION=8
-ARG MRITOOLS_VERSION=4.5.3
+ARG MRITOOLS_VERSION=4.6.1
+# Must match the base image's distro. The ubuntu-22.04 build needs GLIBC_2.34
+# while the FSL base is Ubuntu 20.04 with glibc 2.31, so it installs fine and
+# then dies at the first call with a version error.
+ARG MRITOOLS_DISTRO=ubuntu-20.04
 ARG JULIA_VERSION=1.12.6
 
 # CPU-only PyTorch by default (~190 MB against ~2.5 GB for the CUDA wheel and
@@ -227,10 +231,12 @@ ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${MATLAB_RUNTIME_ROOT}/runtime/glnxa64:$
 # absolute path /opt/mritools/bin/makehomogeneous before running bet, so the
 # deepmrsi masking step needs this exact location.
 # ---------------------------------------------------------------------------
-RUN curl -fL --retry 5 --retry-delay 5 --retry-connrefused -o /tmp/mritools.tar.gz "https://github.com/korbinian90/CompileMRI.jl/releases/download/v${MRITOOLS_VERSION}/mritools_ubuntu-22.04_${MRITOOLS_VERSION}.tar.gz" \
+RUN curl -fL --retry 5 --retry-delay 5 --retry-connrefused -o /tmp/mritools.tar.gz "https://github.com/korbinian90/CompileMRI.jl/releases/download/v${MRITOOLS_VERSION}/mritools_${MRITOOLS_DISTRO}_${MRITOOLS_VERSION}.tar.gz" \
     && tar -xzf /tmp/mritools.tar.gz -C /opt \
-    && mv /opt/mritools_ubuntu-22.04_${MRITOOLS_VERSION} /opt/mritools \
-    && rm -f /tmp/mritools.tar.gz
+    && mv /opt/mritools_${MRITOOLS_DISTRO}_${MRITOOLS_VERSION} /opt/mritools \
+    && rm -f /tmp/mritools.tar.gz \
+    && /opt/mritools/bin/makehomogeneous --help > /dev/null 2>&1 \
+    && echo "makehomogeneous runs"
 
 # ---------------------------------------------------------------------------
 # Julia

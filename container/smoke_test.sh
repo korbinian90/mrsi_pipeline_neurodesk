@@ -32,7 +32,10 @@ check "dcm2niix"           bash -c 'dcm2niix -h | head -1'
 check "MINC rawtominc"     bash -c 'command -v rawtominc'
 check "MINC mincresample"  bash -c 'command -v mincresample'
 check "LCModel"            bash -c 'command -v lcmodel'
-check "makehomogeneous"    bash -c 'test -x /opt/mritools/bin/makehomogeneous && echo present'
+# Run it, do not just look for the file. The ubuntu-22.04 mritools build is
+# executable on this base image but dies on the first call with
+# "GLIBC_2.34 not found", which a test -x check happily reports as present.
+check "makehomogeneous runs"  bash -c '/opt/mritools/bin/makehomogeneous --help >/dev/null 2>&1 && echo runs'
 check "MATLAB Runtime"     bash -c 'test -d "${MATLAB_RUNTIME_ROOT}/runtime/glnxa64" && echo "${MATLAB_RUNTIME_ROOT}"'
 check "MNI atlas"          bash -c 'test -d "${MNI_ATLAS_DIR}" && echo "${MNI_ATLAS_DIR}"'
 
