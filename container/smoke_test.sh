@@ -32,10 +32,18 @@ check "dcm2niix"           bash -c 'dcm2niix -h | head -1'
 check "MINC rawtominc"     bash -c 'command -v rawtominc'
 check "MINC mincresample"  bash -c 'command -v mincresample'
 check "LCModel"            bash -c 'command -v lcmodel'
-# Run it, do not just look for the file. The ubuntu-22.04 mritools build is
-# executable on this base image but dies on the first call with
-# "GLIBC_2.34 not found", which a test -x check happily reports as present.
-check "makehomogeneous runs"  bash -c '/opt/mritools/bin/makehomogeneous --help >/dev/null 2>&1 && echo runs'
+# Exercise it on a real volume, not --help. Two separate faults hid behind a
+# file-exists check: the ubuntu-22.04 build needs GLIBC_2.34 that this base
+# does not have, and the MATLAB Runtime libraries segfault it. --help survives
+# both, so only actual work proves anything.
+check "makehomogeneous on a volume" bash -c '
+    python - <<PY >/dev/null 2>&1
+import numpy as np, nibabel as nib
+d = np.abs(np.random.randn(16, 16, 8)).astype(np.float32)
+nib.save(nib.Nifti1Image(d, np.eye(4)), "/tmp/_smoke.nii.gz")
+PY
+    /opt/mritools/bin/makehomogeneous -m /tmp/_smoke.nii.gz -o /tmp/_smoke.hom.nii.gz -s 5 >/dev/null 2>&1 \
+        && test -s /tmp/_smoke.hom.nii.gz && echo "produced output"'
 check "MATLAB Runtime"     bash -c 'test -d "${MATLAB_RUNTIME_ROOT}/runtime/glnxa64" && echo "${MATLAB_RUNTIME_ROOT}"'
 check "MNI atlas"          bash -c 'test -d "${MNI_ATLAS_DIR}" && echo "${MNI_ATLAS_DIR}"'
 

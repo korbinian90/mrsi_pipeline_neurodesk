@@ -230,13 +230,32 @@ ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${MATLAB_RUNTIME_ROOT}/runtime/glnxa64:$
 # ADDED against the recipe: deep_crt_mrsi/bet_mask.py shells out to the
 # absolute path /opt/mritools/bin/makehomogeneous before running bet, so the
 # deepmrsi masking step needs this exact location.
+#
+# makehomogeneous is itself a PackageCompiler-built Julia binary, so the
+# MATLAB Runtime libraries segfault it exactly as they segfault julia (rc 139
+# with them on LD_LIBRARY_PATH, rc 0 without). The julia wrapper cannot help,
+# because bet_mask.py calls this binary by absolute path rather than through
+# PATH, so the real executable is moved aside and the same guard installed in
+# its place. Note --help survives the conflict and only real work crashes, so
+# check it against an actual volume.
 # ---------------------------------------------------------------------------
 RUN curl -fL --retry 5 --retry-delay 5 --retry-connrefused -o /tmp/mritools.tar.gz "https://github.com/korbinian90/CompileMRI.jl/releases/download/v${MRITOOLS_VERSION}/mritools_${MRITOOLS_DISTRO}_${MRITOOLS_VERSION}.tar.gz" \
     && tar -xzf /tmp/mritools.tar.gz -C /opt \
     && mv /opt/mritools_${MRITOOLS_DISTRO}_${MRITOOLS_VERSION} /opt/mritools \
     && rm -f /tmp/mritools.tar.gz \
     && /opt/mritools/bin/makehomogeneous --help > /dev/null 2>&1 \
-    && echo "makehomogeneous runs"
+    && mv /opt/mritools/bin/makehomogeneous /opt/mritools/bin/makehomogeneous.real \
+    && printf '%s\n' \
+        '#!/bin/sh' \
+        '# Same MATLAB Runtime conflict as julia; see the note above.' \
+        'if [ -n "${LD_LIBRARY_PATH:-}" ]; then' \
+        '    LD_LIBRARY_PATH=$(printf %s "$LD_LIBRARY_PATH" | tr ":" "\n" | grep -v MATLAB_Runtime | paste -sd: -)' \
+        '    export LD_LIBRARY_PATH' \
+        'fi' \
+        'exec /opt/mritools/bin/makehomogeneous.real "$@"' \
+        > /opt/mritools/bin/makehomogeneous \
+    && chmod +x /opt/mritools/bin/makehomogeneous \
+    && echo "makehomogeneous wrapped"
 
 # ---------------------------------------------------------------------------
 # Julia
