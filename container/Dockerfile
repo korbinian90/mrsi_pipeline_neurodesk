@@ -130,19 +130,19 @@ RUN apt-get update -qq \
         libxext6 libxi6 libxmu6 octave perl \
     && rm -rf /var/lib/apt/lists/* \
     && cd / \
-    && curl -fL --retry 5 --retry-delay 5 --retry-all-errors https://packages.bic.mni.mcgill.ca/minc-toolkit/Debian/minc-toolkit-${MINC_VERSION}-20170529-Ubuntu_16.04-x86_64.deb -o minc.deb \
+    && curl -fL --retry 5 --retry-delay 5 --retry-connrefused https://packages.bic.mni.mcgill.ca/minc-toolkit/Debian/minc-toolkit-${MINC_VERSION}-20170529-Ubuntu_16.04-x86_64.deb -o minc.deb \
     && ar p minc.deb data.tar.gz | tar zx \
     && rm minc.deb \
     && ln -s /opt/minc/${MINC_VERSION} /opt/minc-${MINC_VERSION} \
-    && curl -fL --retry 5 --retry-delay 5 --retry-all-errors http://packages.bic.mni.mcgill.ca/tgz/beast-library-1.1.tar.gz | tar -xz -C /opt/minc-${MINC_VERSION}/share \
-    && curl -fL --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/mni_90a.zip http://www.bic.mni.mcgill.ca/~vfonov/icbm/2009/mni_icbm152_nlin_sym_09a_minc2.zip \
+    && curl -fL --retry 5 --retry-delay 5 --retry-connrefused http://packages.bic.mni.mcgill.ca/tgz/beast-library-1.1.tar.gz | tar -xz -C /opt/minc-${MINC_VERSION}/share \
+    && curl -fL --retry 5 --retry-delay 5 --retry-connrefused -o /tmp/mni_90a.zip http://www.bic.mni.mcgill.ca/~vfonov/icbm/2009/mni_icbm152_nlin_sym_09a_minc2.zip \
     && unzip -q /tmp/mni_90a.zip -d /opt/minc-${MINC_VERSION}/share/icbm152_model_09a \
-    && curl -fL --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/mni_90c.zip http://www.bic.mni.mcgill.ca/~vfonov/icbm/2009/mni_icbm152_nlin_sym_09c_minc2.zip \
+    && curl -fL --retry 5 --retry-delay 5 --retry-connrefused -o /tmp/mni_90c.zip http://www.bic.mni.mcgill.ca/~vfonov/icbm/2009/mni_icbm152_nlin_sym_09c_minc2.zip \
     && unzip -q /tmp/mni_90c.zip -d /opt/minc-${MINC_VERSION}/share/icbm152_model_09c \
     && rm -rf /tmp/mni* \
     && apt-get update -qq \
     && apt-get remove -y libjpeg62 \
-    && curl -fL --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/libjpeg62-turbo.deb http://ftp.br.debian.org/debian/pool/main/libj/libjpeg-turbo/libjpeg62-turbo_2.0.6-4_amd64.deb \
+    && curl -fL --retry 5 --retry-delay 5 --retry-connrefused -o /tmp/libjpeg62-turbo.deb http://ftp.br.debian.org/debian/pool/main/libj/libjpeg-turbo/libjpeg62-turbo_2.0.6-4_amd64.deb \
     && dpkg -i /tmp/libjpeg62-turbo.deb \
     && rm -f /tmp/libjpeg62-turbo.deb \
     && rm -rf /var/lib/apt/lists/*
@@ -165,7 +165,7 @@ RUN apt-get update -qq \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /opt/lcmodel-${LCMODEL_VERSION} \
     && cd /opt/lcmodel-${LCMODEL_VERSION} \
-    && curl -fL --retry 5 --retry-delay 5 --retry-all-errors -o lcm-64.tar https://s-provencher.com/pub/LCModel/programs/lcm-64.tar \
+    && curl -fL --retry 5 --retry-delay 5 --retry-connrefused -o lcm-64.tar https://s-provencher.com/pub/LCModel/programs/lcm-64.tar \
     && tar xf lcm-64.tar \
     && rm -f lcm-64.tar \
     && gunzip -c lcm-core.tar.gz | tar xf - \
@@ -197,7 +197,7 @@ RUN apt-get update -qq \
     && apt-get install -y -q --no-install-recommends libncurses5 libxext6 libxmu6 libxpm-dev libxt6 \
     && rm -rf /var/lib/apt/lists/* \
     && cd /opt \
-    && curl -fL --retry 5 --retry-delay 5 --retry-all-errors -O "https://ssd.mathworks.com/supportfiles/downloads/R${MATLAB_VERSION}/Release/${MATLAB_UPDATE_VERSION}/deployment_files/installer/complete/glnxa64/MATLAB_Runtime_R${MATLAB_VERSION}_Update_${MATLAB_UPDATE_VERSION}_glnxa64.zip" \
+    && curl -fL --retry 5 --retry-delay 5 --retry-connrefused -O "https://ssd.mathworks.com/supportfiles/downloads/R${MATLAB_VERSION}/Release/${MATLAB_UPDATE_VERSION}/deployment_files/installer/complete/glnxa64/MATLAB_Runtime_R${MATLAB_VERSION}_Update_${MATLAB_UPDATE_VERSION}_glnxa64.zip" \
     && unzip -q "MATLAB_Runtime_R${MATLAB_VERSION}_Update_${MATLAB_UPDATE_VERSION}_glnxa64.zip" -d mcrtmp \
     && mcrtmp/install -mode silent -destinationFolder "/opt/MATLAB_Runtime_R${MATLAB_VERSION}" -agreeToLicense yes \
     && rm -rf mcrtmp "MATLAB_Runtime_R${MATLAB_VERSION}_Update_${MATLAB_UPDATE_VERSION}_glnxa64.zip" \
@@ -227,7 +227,7 @@ ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${MATLAB_RUNTIME_ROOT}/runtime/glnxa64:$
 # absolute path /opt/mritools/bin/makehomogeneous before running bet, so the
 # deepmrsi masking step needs this exact location.
 # ---------------------------------------------------------------------------
-RUN curl -fL --retry 5 --retry-delay 5 --retry-all-errors -o /tmp/mritools.tar.gz "https://github.com/korbinian90/CompileMRI.jl/releases/download/v${MRITOOLS_VERSION}/mritools_ubuntu-22.04_${MRITOOLS_VERSION}.tar.gz" \
+RUN curl -fL --retry 5 --retry-delay 5 --retry-connrefused -o /tmp/mritools.tar.gz "https://github.com/korbinian90/CompileMRI.jl/releases/download/v${MRITOOLS_VERSION}/mritools_ubuntu-22.04_${MRITOOLS_VERSION}.tar.gz" \
     && tar -xzf /tmp/mritools.tar.gz -C /opt \
     && mv /opt/mritools_ubuntu-22.04_${MRITOOLS_VERSION} /opt/mritools \
     && rm -f /tmp/mritools.tar.gz
@@ -249,7 +249,7 @@ ENV JULIA_DEPOT_PATH=/opt/julia_depot
 # ships with and dies with SIGSEGV midway through precompilation. Julia needs
 # nothing from LD_LIBRARY_PATH: its dependencies are either bundled in
 # julia-*/lib or come from Pkg artifacts.
-RUN curl -fL --retry 5 --retry-delay 5 --retry-all-errors "https://julialang-s3.julialang.org/bin/linux/x64/${JULIA_VERSION%.*}/julia-${JULIA_VERSION}-linux-x86_64.tar.gz" | tar xz -C /opt \
+RUN curl -fL --retry 5 --retry-delay 5 --retry-connrefused "https://julialang-s3.julialang.org/bin/linux/x64/${JULIA_VERSION%.*}/julia-${JULIA_VERSION}-linux-x86_64.tar.gz" | tar xz -C /opt \
     && printf '%s\n' \
         '#!/bin/sh' \
         '# Drop MATLAB Runtime entries from LD_LIBRARY_PATH; see the note above.' \
