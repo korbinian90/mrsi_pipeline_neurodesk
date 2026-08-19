@@ -3,51 +3,47 @@
 # Bake the WALINET weights into the image at build time.
 #
 # The image is shipped to a collaborator as a tarball or a .sif, so the weights
-# have to be inside it. Nothing is fetched at run time and nothing has to be
-# mounted in.
+# have to be inside it. Nothing is fetched at run time and nothing is mounted in.
 #
-#   model name   installed as                  supplied by
-#   ----------   ---------------------------   ----------------------------
-#   legacy_7T    <models>/                     the pinned MRSIdeepFIRE
-#                model_best.pt + config.json   checkout, tracked in its git
-#   final_7T     <models>/7T_Final             staged by hand, about 1 GB
-#   final_3T     <models>/3T_Final             staged by hand
+#   model name   installed as              supplied by
+#   ----------   ----------------------    ----------------------------------
+#   7T           <models>/7T_Final         staged from a MRSIdeepFIRE checkout
+#   3T           <models>/3T_Final         staged from a MRSIdeepFIRE checkout
 #
-# The names on the left are the ones walinet selects by (MODEL_LAYOUTS in
-# walinet/package_config.py, and --walinet_model on deepmrsi.py); the paths in
-# the middle are the directories that table maps them to. legacy_7T maps to the
-# models root, which the checkout already fills, so it needs no staging at all.
+# The names on the left are what walinet selects by (MODEL_LAYOUTS in
+# walinet/package_config.py, and -Q's second argument in Part1); the paths in
+# the middle are the directories that table maps them to. Both weigh about 1 GB
+# and are gitignored in MRSIdeepFIRE, so build.sh copies them into the staging
+# directory before the build.
 #
-# Whatever ends up installed is validated here, so a missing or half-copied
-# model fails the build with the file names it needs instead of producing an
-# image whose model selection dies in the middle of a reconstruction.
+# A model directory needs all three of model_best.pt, run_summary.txt and
+# configs/. configs/ is easy to mistake for optional: besides the normalization
+# lookup it holds the trained FID lengths, and inference without it runs but
+# stops checking whether an acquisition length is supported at all.
 #
 # Usage: install_walinet_models.sh <staging dir> <models dir> [required]
 #
-# "required" is "all", or a comma separated list of model names, and says which
-# models the build insists on. It defaults to legacy_7T so a build without the
-# separately shipped weights still succeeds; the image for the collaborator is
-# built with "all".
+# "required" is "all" (the default), "none", or a comma separated list of model
+# names, and says which models the build insists on.
 
 set -euo pipefail
 
 STAGING_DIR=${1:?staging directory required}
 MODELS_DIR=${2:?models directory required}
-REQUIRED_SPEC=${3:-legacy_7T}
+REQUIRED_SPEC=${3:-all}
 
-ALL_MODELS="legacy_7T final_7T final_3T"
+ALL_MODELS="7T 3T"
 
 model_directory() {
     case "$1" in
-        legacy_7T) printf '%s' '.' ;;
-        final_7T)  printf '%s' '7T_Final' ;;
-        final_3T)  printf '%s' '3T_Final' ;;
+        7T) printf '%s' '7T_Final' ;;
+        3T) printf '%s' '3T_Final' ;;
         *) echo "unknown WALINET model '$1'" >&2; return 1 ;;
     esac
 }
 
-# A staged directory that does not exist is not an error: a fresh clone stages
-# nothing and still has to build.
+# A staged directory that does not exist is not an error: a checkout without the
+# weights still has to build, it just cannot require them.
 install_staged_model() {
     local model=$1
     local src="${STAGING_DIR}/${model}"
@@ -63,82 +59,35 @@ install_staged_model() {
     cp -a "${src}/." "${dest}/"
 }
 
-# The entries that make a model directory complete, mirroring MODEL_LAYOUTS in
-# walinet/package_config.py. The two layouts differ: the in-repo legacy model is
-# a bare checkpoint next to its config.json, while a separately shipped model
-# also carries run_summary.txt (the architecture) and configs/ (the trained FID
-# lengths). Checking only the checkpoint would let a half-copied new-format
-# directory load through the legacy path and silently drop the FID-length
-# handling, which is what that table exists to prevent.
 missing_entries() {
-    local model=$1 dir=$2
+    local dir=$1
     local missing=()
-
-    if [ "$model" = "legacy_7T" ]; then
-        if [ ! -f "${dir}/model_best.pt" ] && ! compgen -G "${dir}/*.pt" >/dev/null; then
-            missing+=("model_best.pt (or another flat .pt checkpoint)")
-        fi
-        [ -f "${dir}/config.json" ] || missing+=("config.json")
-    else
-        [ -f "${dir}/model_best.pt" ]   || missing+=("model_best.pt")
-        [ -f "${dir}/run_summary.txt" ] || missing+=("run_summary.txt")
-        [ -d "${dir}/configs" ]         || missing+=("configs/")
-    fi
-
+    [ -f "${dir}/model_best.pt" ]   || missing+=("model_best.pt")
+    [ -f "${dir}/run_summary.txt" ] || missing+=("run_summary.txt")
+    [ -d "${dir}/configs" ]         || missing+=("configs/")
     [ ${#missing[@]} -eq 0 ] || printf '%s\n' "${missing[@]}"
-}
-
-# legacy_7T lives in the models root, which always exists, so its presence is
-# decided by its contents rather than by the directory.
-model_is_present() {
-    local model=$1 dir=$2
-
-    if [ "$model" = "legacy_7T" ]; then
-        [ -f "${dir}/config.json" ] || compgen -G "${dir}/*.pt" >/dev/null
-    else
-        [ -d "$dir" ] && [ -n "$(ls -A "$dir" 2>/dev/null)" ]
-    fi
 }
 
 model_is_required() {
     local model=$1 required
     for required in ${REQUIRED_MODELS}; do
-        if [ "$required" = "$model" ]; then
-            return 0
-        fi
+        [ "$required" = "$model" ] && return 0
     done
     return 1
 }
 
-report_incomplete() {
-    local model=$1 dir=$2
-    shift 2
-
-    echo "ERROR: WALINET model '${model}' is incomplete in ${dir}" >&2
-    printf '         missing: %s\n' "$@" >&2
-
-    if [ "$model" = "legacy_7T" ]; then
-        echo "       legacy_7T is tracked in MRSIdeepFIRE and needs no staging, so the" >&2
-        echo "       pinned DEEPFIRE_REF no longer ships walinet/models/. Pin a ref that" >&2
-        echo "       does, or drop legacy_7T from REQUIRE_WALINET_MODELS." >&2
-    else
-        echo "       Copy the complete model directory to container/walinet_models/${model}/" >&2
-        echo "       and rebuild. See container/walinet_models/README.md." >&2
-    fi
-}
-
-if [ "$REQUIRED_SPEC" = "all" ]; then
-    REQUIRED_MODELS="$ALL_MODELS"
-else
-    REQUIRED_MODELS="${REQUIRED_SPEC//,/ }"
-fi
+case "$REQUIRED_SPEC" in
+    all)  REQUIRED_MODELS="$ALL_MODELS" ;;
+    none) REQUIRED_MODELS="" ;;
+    *)    REQUIRED_MODELS="${REQUIRED_SPEC//,/ }" ;;
+esac
 
 for model in ${REQUIRED_MODELS}; do
     model_directory "$model" >/dev/null
 done
 
 for model in ${ALL_MODELS}; do
-    [ "$model" = "legacy_7T" ] || install_staged_model "$model"
+    install_staged_model "$model"
 done
 
 # Apptainer runs as the calling user, so nothing may depend on being root.
@@ -147,19 +96,21 @@ chmod -R a+rwX "${MODELS_DIR}"
 failed=0
 for model in ${ALL_MODELS}; do
     dir="${MODELS_DIR}/$(model_directory "$model")"
-    dir=${dir%/.}
 
-    if model_is_present "$model" "$dir"; then
-        mapfile -t missing < <(missing_entries "$model" "$dir")
+    if [ -d "$dir" ] && [ -n "$(ls -A "$dir" 2>/dev/null)" ]; then
+        mapfile -t missing < <(missing_entries "$dir")
         if [ ${#missing[@]} -gt 0 ]; then
-            report_incomplete "$model" "$dir" "${missing[@]}"
+            echo "ERROR: WALINET model '${model}' is incomplete in ${dir}" >&2
+            printf '         missing: %s\n' "${missing[@]}" >&2
             failed=1
         else
             echo "WALINET ${model}: complete in ${dir}"
         fi
     elif model_is_required "$model"; then
-        mapfile -t missing < <(missing_entries "$model" "$dir")
-        report_incomplete "$model" "$dir" "${missing[@]}"
+        echo "ERROR: WALINET model '${model}' is required but not installed" >&2
+        echo "       Stage it in container/walinet_models/${model}/ or let build.sh" >&2
+        echo "       copy it from a MRSIdeepFIRE checkout (WALINET_MODELS_SRC)." >&2
+        echo "       To build without it: REQUIRE_WALINET_MODELS=none" >&2
         failed=1
     else
         echo "WALINET ${model}: not installed, and not required by REQUIRE_WALINET_MODELS=${REQUIRED_SPEC}"

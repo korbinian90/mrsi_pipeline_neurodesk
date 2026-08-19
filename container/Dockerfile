@@ -401,10 +401,9 @@ RUN WALINET_PKG=/opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/waline
 # Bake the WALINET weights in. The image is handed over as a tarball or a .sif,
 # so nothing may be fetched or mounted at run time.
 #
-# legacy_7T arrives with the checkout above (it is tracked in MRSIdeepFIRE) and
-# is selectable with no user action. final_7T and final_3T are not in any git
-# repository and are staged by hand into container/walinet_models/<name>/
-# before the build; see that directory's README.
+# Neither model is in any git repository, so build.sh copies them from a local
+# MRSIdeepFIRE checkout into container/walinet_models/<name>/ before the build;
+# see that directory's README.
 #
 # The staging tree is bind mounted from the build context instead of COPYed in.
 # A COPY layer would keep a second copy of the ~1 GB final_7T checkpoint in the
@@ -416,11 +415,12 @@ RUN WALINET_PKG=/opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/waline
 # Whatever ends up installed is validated against the layout walinet expects,
 # so a missing or half-copied model stops the build with the names of the files
 # it wants, instead of shipping an image that dies mid-reconstruction.
-# REQUIRE_WALINET_MODELS says which models the build insists on: the default
-# only demands legacy_7T, so a build without the separately shipped weights
-# still works. The image for the collaborator is built with
-#   --build-arg REQUIRE_WALINET_MODELS=all
-ARG REQUIRE_WALINET_MODELS=legacy_7T
+# REQUIRE_WALINET_MODELS says which models the build insists on: "all" (the
+# default), "none", or a comma separated list of 7T and 3T. build.sh stages both
+# from a local MRSIdeepFIRE checkout, so the default build gets them without any
+# manual copying. Build with REQUIRE_WALINET_MODELS=none when the weights are
+# not available.
+ARG REQUIRE_WALINET_MODELS=all
 RUN --mount=type=bind,source=container/walinet_models,target=/tmp/walinet_staging \
     --mount=type=bind,source=container/install_walinet_models.sh,target=/tmp/install_walinet_models.sh \
     bash /tmp/install_walinet_models.sh /tmp/walinet_staging "${WALINET_MODEL_DIR}" \

@@ -70,6 +70,49 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
         ;;
 esac
 
+# Stage the WALINET weights into the build context.
+#
+# They are gitignored in MRSIdeepFIRE (about 1 GB each) so a checkout of this
+# repository has none. Rather than ask for a manual copy, look for a local
+# MRSIdeepFIRE checkout and take them from there. Only the three entries the
+# model needs are copied, so the training source tree and the second checkpoint
+# cannot leak into the image even if they are still lying around.
+#
+# Point WALINET_MODELS_SRC at a models/ directory to override the search.
+if [[ -z "${WALINET_MODELS_SRC:-}" ]]; then
+    for candidate in "${SCRIPT_DIR}/../../MRSIdeepFIRE" \
+                     "${SCRIPT_DIR}/../../../MRSIdeepFIRE" \
+                     "${HOME}/GitHub/MRSIdeepFIRE"; do
+        models="${candidate}/python-ismrmrd-server/DEEP_CRT_MRSI/install/walinet/walinet/models"
+        if [[ -d "${models}" ]]; then
+            WALINET_MODELS_SRC="${models}"
+            break
+        fi
+    done
+fi
+
+if [[ -n "${WALINET_MODELS_SRC:-}" && -d "${WALINET_MODELS_SRC}" ]]; then
+    echo "Staging WALINET models from ${WALINET_MODELS_SRC}"
+    for pair in "7T:7T_Final" "3T:3T_Final"; do
+        name=${pair%%:*}
+        dir=${pair##*:}
+        src="${WALINET_MODELS_SRC}/${dir}"
+        dest="${SCRIPT_DIR}/walinet_models/${name}"
+        if [[ ! -d "${src}" ]]; then
+            echo "  ${name}: not in the source checkout, skipping"
+            continue
+        fi
+        mkdir -p "${dest}"
+        for entry in model_best.pt run_summary.txt configs; do
+            [[ -e "${src}/${entry}" ]] && cp -a "${src}/${entry}" "${dest}/"
+        done
+        echo "  ${name}: staged from ${dir}"
+    done
+else
+    echo "No MRSIdeepFIRE checkout found for the WALINET weights."
+    echo "Set WALINET_MODELS_SRC, or build with REQUIRE_WALINET_MODELS=none."
+fi
+
 echo "Building ${IMAGE}"
 for var in PART1_REF PART2_REF DEEPFIRE_REF MRSIJL_REF TORCH_INDEX_URL REQUIRE_WALINET_MODELS; do
     printf '  %-15s = %s\n' "${var}" "${!var:-<Dockerfile default>}"
