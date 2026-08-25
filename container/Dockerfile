@@ -340,8 +340,12 @@ RUN pip install --no-cache-dir --upgrade pip setuptools==81.0.0 wheel \
 #
 # Do NOT set DEEPFIRE_REF to "main" or PART1_REF to "julia-reco": neither ref
 # exists, and the clone layer fails the build.
-ARG DEEPFIRE_REF=claude/container-fitting-selection-20260817
-ARG MRSIJL_REF=claude/optional-patrefscan-20260818
+#
+# DEEPFIRE_REF is the integration branch merging the model selector, the offline
+# config surface and a subtree resynced to current MRSI.jl. Replace it with a SHA
+# once it lands on master; a branch ref is not reproducible.
+ARG DEEPFIRE_REF=claude/trunk-merge-20260825
+ARG MRSIJL_REF=885c5307782b895a7592a22fba5f45a953e00443
 ARG PART1_REF=neurodesk
 ARG PART2_REF=neurodesk
 
