@@ -345,7 +345,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools==81.0.0 wheel \
 # config surface and a subtree resynced to current MRSI.jl. Replace it with a SHA
 # once it lands on master; a branch ref is not reproducible.
 ARG DEEPFIRE_REF=claude/trunk-merge-20260825
-ARG MRSIJL_REF=885c5307782b895a7592a22fba5f45a953e00443
+ARG MRSIJL_REF=21c21930df4f802d2bae2e6e4b348b29c394347a
 ARG PART1_REF=neurodesk
 ARG PART2_REF=neurodesk
 
