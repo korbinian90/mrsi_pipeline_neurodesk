@@ -66,6 +66,12 @@ jc3_pt1 = MRSI.coil_combine(csi_odd, ref3; ref_point_for_combine=1, combine_meth
 check("ref3 MRSI.jl default (clamps to 3)", jc3_asis, "m_coilcomb_ref3.bin")
 check("ref3 forced point 1", jc3_pt1, "m_coilcomb_ref3.bin")
 
+println("\n=== T6  the weights stored in WaterReference.mat (MRSI_Reconstruction.m:958) ===")
+# The array MATLAB saves as weights.Data and the one coil_combine_weights returns
+# have to be the same, or the two pipelines cannot exchange a WaterReference.mat.
+jw = MRSI.coil_combine_weights(ref; ref_point_for_combine=4, combine_method=:musical)
+check("coil_combine_weights vs stored weights.Data", jw, "m_weights_ref.bin")
+
 println()
 npass = count(r -> r[4], results)
 @printf("%d/%d parity checks passed\n", npass, length(results))

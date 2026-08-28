@@ -86,6 +86,18 @@ out3 = op_CoilCombineData(csi3, w3);
 write_complex(io_dir, 'm_coilcomb_ref3.bin', out3.Data * 1e5);
 fprintf('coilcomb ref3: OK\n');
 
+% --- T6: the weights MRSI_Reconstruction.m stores in WaterReference.mat ----
+% :566-570 reduces the reference to point 4, point 1 when it has 3 or fewer,
+% and :958 takes the conj. That array is what is saved as weights.Data and what
+% MRSI.jl returns, so the two pipelines can read each other's file.
+if size(ref, 4) > 3
+    ref_pt = ref(:,:,:,4,:);
+else
+    ref_pt = ref(:,:,:,1,:);
+end
+write_complex(io_dir, 'm_weights_ref.bin', conj(ref_pt));
+fprintf('weights: OK\n');
+
 fprintf('MATLAB side done\n');
 
 
