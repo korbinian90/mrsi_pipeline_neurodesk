@@ -92,6 +92,19 @@ RUN mkdir -p "${MATLAB_INSTALL_DIR}/toolbox/local" \
         "end" \
         > "${MATLAB_INSTALL_DIR}/toolbox/local/startup.m"
 
+# Part1's run_julia_reco.jl activates JULIA_MRSI_PKG and then does "using JSON;
+# using MRSI". The base image points that variable at /opt/MRSI.jl, which is the
+# package rather than an environment, so activating it yields MRSI's own
+# dependencies and no JSON, and the reconstruction dies at the import with
+# "Package JSON not found in current path". The script's comment says the two
+# may live in their own environment, so build one that carries both.
+#
+# The same fix belongs in the base image. Kept here while the development route
+# is the only thing exercising it.
+RUN julia --startup-file=no -e 'using Pkg; Pkg.activate("/opt/julia_env"); Pkg.develop(path="/opt/MRSI.jl"); Pkg.add(["JSON", "MAT"]); Pkg.precompile()' \
+    && chmod -R a+rwX /opt/julia_env
+ENV JULIA_MRSI_PKG=/opt/julia_env
+
 RUN matlab -batch "disp(version); disp(matlabroot)" || \
     echo "NOTE: MATLAB did not start. Expected until a licence is mounted; see container/matlab_local/README.md."
 
