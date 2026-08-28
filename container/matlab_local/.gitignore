@@ -1,0 +1,10 @@
+# Staging point for the local MATLAB path additions and the licence.
+#
+# Nothing dropped in here is committed. Some of it is licensed third party
+# code that does not belong in a public repository, and the licence file is
+# tied to one user and one host. Ignore everything, but keep the directory and
+# its documentation tracked: the Dockerfile reads this directory whether or not
+# anything was staged.
+*
+!.gitignore
+!README.md
