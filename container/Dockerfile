@@ -366,7 +366,14 @@ RUN --mount=type=ssh \
 # deepMRSI/requirements.txt is checked in as UTF-16LE with a BOM. pip's legacy
 # auto-decoding of that is not something to rely on, so transcode to UTF-8
 # first rather than let the build depend on the pip version in the image.
-RUN iconv -f UTF-16 -t UTF-8 /opt/deepmrsi/deepMRSI/requirements.txt > /tmp/deepmrsi-requirements.txt \
+# requirements.txt used to be UTF-16 and is ASCII since the upstream compat fix,
+# so converting unconditionally turns a valid file into mojibake and pip rejects
+# the first "package name". Convert only when the BOM says to.
+RUN if head -c2 /opt/deepmrsi/deepMRSI/requirements.txt | od -An -tx1 | grep -qE 'ff fe|fe ff'; then \
+        iconv -f UTF-16 -t UTF-8 /opt/deepmrsi/deepMRSI/requirements.txt > /tmp/deepmrsi-requirements.txt; \
+    else \
+        tr -d '\r' < /opt/deepmrsi/deepMRSI/requirements.txt > /tmp/deepmrsi-requirements.txt; \
+    fi \
     && pip install --no-cache-dir -r /tmp/deepmrsi-requirements.txt \
     && rm -f /tmp/deepmrsi-requirements.txt \
     && pip install --no-cache-dir -e /opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/deep_crt_mrsi \
