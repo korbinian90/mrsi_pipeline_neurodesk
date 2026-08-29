@@ -83,7 +83,11 @@ OutName=$(basename "$Out")
 T1Arg=()
 [[ -n "$T1" ]] && T1Arg=(-t "/out/$(realpath --relative-to="$OUT_ROOT" "$T1")")
 
-Script=$(mktemp)
+# The script goes into the output directory, which is already mounted, rather
+# than a mktemp path mounted separately: Docker on Windows cannot resolve a
+# POSIX temp path and silently creates a DIRECTORY at the target instead, so
+# the run dies with "/run.sh: Is a directory".
+Script="$OUT_ROOT/.run_${Name}.sh"
 {
     echo '#!/bin/bash'
     echo "export JULIA_MRSI_PKG=/opt/julia_env"
@@ -104,6 +108,5 @@ echo "  args: $*"
 docker rm -f "pipeline-$Name" >/dev/null 2>&1 || true
 MSYS_NO_PATHCONV=1 docker run --rm --name "pipeline-$Name" \
     --mac-address "$MAC" "${Mounts[@]}" \
-    -v "$Script:/run.sh:ro" \
-    "$IMAGE" bash /run.sh
+    "$IMAGE" bash "/out/.run_${Name}.sh"
 rm -f "$Script"
