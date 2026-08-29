@@ -27,7 +27,9 @@ ARG MATLAB_RELEASE=R2023a
 # Measured with matlab.codetools.requiredFilesAndProducts over all four Part1
 # entry points. Simulink and Simulink 3D Animation were on that list until two
 # rotation helpers were provided locally; see container/matlab_local/README.md.
-ARG MATLAB_PRODUCTS="MATLAB Image_Processing_Toolbox Signal_Processing_Toolbox"
+# MATLAB_Compiler is what provides mcc. Without it the .m sources can be run but
+# not compiled, so the deployed binaries could only ever be built elsewhere.
+ARG MATLAB_PRODUCTS="MATLAB Image_Processing_Toolbox Signal_Processing_Toolbox MATLAB_Compiler"
 
 ARG MATLAB_INSTALL_DIR=/opt/matlab
 
