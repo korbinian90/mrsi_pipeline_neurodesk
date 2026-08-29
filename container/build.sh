@@ -103,8 +103,23 @@ if [[ -n "${WALINET_MODELS_SRC:-}" && -d "${WALINET_MODELS_SRC}" ]]; then
             continue
         fi
         mkdir -p "${dest}"
+        # A half staged model is worse than none: the copy is a gigabyte and an
+        # interrupted one leaves the directory present but empty, which surfaces
+        # three build steps later as "mv: cannot stat .../models" and reads like a
+        # Dockerfile bug. Fail here, where the cause is still visible.
         for entry in model_best.pt run_summary.txt configs; do
-            [[ -e "${src}/${entry}" ]] && cp -a "${src}/${entry}" "${dest}/"
+            if [[ ! -e "${src}/${entry}" ]]; then
+                echo "ERROR: ${name}: ${src}/${entry} is missing." >&2
+                exit 1
+            fi
+            if ! cp -a "${src}/${entry}" "${dest}/"; then
+                echo "ERROR: ${name}: copying ${entry} failed." >&2
+                exit 1
+            fi
+            if [[ ! -e "${dest}/${entry}" ]]; then
+                echo "ERROR: ${name}: ${entry} did not land in ${dest}." >&2
+                exit 1
+            fi
         done
         echo "  ${name}: staged from ${dir}"
     done
