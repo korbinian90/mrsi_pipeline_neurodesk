@@ -403,9 +403,17 @@ RUN python -c 'from deep_crt_mrsi.deepmrsi import process_deep_mrsi_offline' \
 # relocation works purely through the symlink below, so exporting it would
 # advertise a runtime knob that has no effect.
 ARG WALINET_MODEL_DIR=/opt/walinet_models
+# models/ is gitignored down to models/*/ and nothing else under it is tracked,
+# so a fresh clone has no models directory at all and there is nothing to move.
+# It used to exist because the legacy checkpoint was committed; once that was
+# replaced by the ignored 7T_Final and 3T_Final this step could no longer run.
 RUN WALINET_PKG=/opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/walinet/walinet \
-    && mv "${WALINET_PKG}/models" "${WALINET_MODEL_DIR}" \
-    && ln -s "${WALINET_MODEL_DIR}" "${WALINET_PKG}/models" \
+    && mkdir -p "${WALINET_MODEL_DIR}" \
+    && if [ -d "${WALINET_PKG}/models" ] && [ ! -L "${WALINET_PKG}/models" ]; then \
+           cp -a "${WALINET_PKG}/models/." "${WALINET_MODEL_DIR}/"; \
+           rm -rf "${WALINET_PKG}/models"; \
+       fi \
+    && ln -sfn "${WALINET_MODEL_DIR}" "${WALINET_PKG}/models" \
     && chmod -R a+rwX "${WALINET_MODEL_DIR}"
 
 # Bake the WALINET weights in. The image is handed over as a tarball or a .sif,
