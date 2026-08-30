@@ -21,13 +21,13 @@
 # Environment:
 #   PART1_DIR  Part1 checkout            (default /opt/Part1)
 #   OUT_DIR    where the binaries land   (default $PART1_DIR/Matlab_Compiled)
-#   SHIM_DIR   toolbox replacements      (default /opt/matlab_path/ToolboxCopies/IndividualFunctions)
+#   OVERLAY    MatlabFunctions overlay   (default /opt/matlab_path)
 #   MATLAB_DIR MATLAB install            (default /opt/matlab)
 set -euo pipefail
 
 PART1_DIR="${PART1_DIR:-/opt/Part1}"
 OUT_DIR="${OUT_DIR:-$PART1_DIR/Matlab_Compiled}"
-SHIM_DIR="${SHIM_DIR:-/opt/matlab_path/ToolboxCopies/IndividualFunctions}"
+OVERLAY="${OVERLAY:-/opt/matlab_path}"
 MATLAB_DIR="${MATLAB_DIR:-/opt/matlab}"
 
 EXPECTED=(GetPar_CreateTempl_MaskPart1 MRSI_Reconstruction julia_write_lcm_files ExtractBrain_mask flip_mask)
@@ -39,20 +39,34 @@ if [[ ! -x "$MATLAB_DIR/bin/mcc" ]]; then
 fi
 [[ -f "$PART1_DIR/compile.m" ]] || { echo "ERROR: no $PART1_DIR/compile.m." >&2; exit 1; }
 
-BundleDir="$PART1_DIR/MatlabFunctions/ToolboxCopies/IndividualFunctions"
-mkdir -p "$BundleDir"
-if [[ -d "$SHIM_DIR" ]]; then
-    cp -a "$SHIM_DIR/." "$BundleDir/"
-    echo "Staged toolbox replacements into $BundleDir:"
-    ls "$BundleDir" | sed 's/^/  /'
+# The image's MatlabFunctions holds only MRSIMatlabFunctions. compile.m also
+# names ToolboxCopies/IndividualFunctions and four MatlabFunctions_3rdParty
+# packages, and refuses outright when one is missing, so the overlay that supplies
+# them at run time is staged into the same tree before compiling.
+Target="$PART1_DIR/MatlabFunctions"
+mkdir -p "$Target"
+if [[ -d "$OVERLAY" ]]; then
+    cp -a "$OVERLAY/." "$Target/"
+    echo "Staged the MatlabFunctions overlay from $OVERLAY:"
+    ls "$Target" | sed 's/^/  /'
 else
-    echo "WARNING: no $SHIM_DIR; the binaries will not carry the toolbox replacements" >&2
-    echo "         and will fail at the first call to one of them." >&2
+    echo "WARNING: no $OVERLAY. compile.m names files it supplies and will refuse," >&2
+    echo "         and any binary that did build would fail at its first de2bi call." >&2
 fi
 echo
 
 cd "$PART1_DIR"
 "$MATLAB_DIR/bin/matlab" -nodisplay -batch "run('$PART1_DIR/compile.m')" || true
+
+# compile.m writes to a relative OutputDir ('Matlab_Compiled'), so the binaries
+# land beside the sources whatever OUT_DIR says. Collect them, rather than
+# editing Part1's recipe to take a path from us.
+BuiltDir="$PART1_DIR/Matlab_Compiled"
+if [[ "$BuiltDir" != "$OUT_DIR" && -d "$BuiltDir" ]]; then
+    mkdir -p "$OUT_DIR"
+    cp -a "$BuiltDir/." "$OUT_DIR/"
+    echo "Collected $BuiltDir -> $OUT_DIR"
+fi
 
 echo
 echo "=== results ==="
