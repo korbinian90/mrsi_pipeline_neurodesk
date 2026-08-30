@@ -56,6 +56,16 @@ OUT_ROOT="${OUT_ROOT:-$(dirname "$Out")}"
 require_dir "$DATA_DIR" "the data directory"
 mkdir -p "$OUT_ROOT"
 
+# gpufit runs the same algorithm on the CPU when it sees no CUDA device, about an
+# order of magnitude slower and with nothing but a log line to say so, so the
+# device is requested explicitly and its absence is reported rather than assumed.
+Gpu=()
+if [[ "${USE_GPU:-auto}" != "no" ]] && command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
+    Gpu=(--gpus all)
+else
+    echo "NOTE: no GPU requested; a gpufit run will fall back to the CPU." >&2
+fi
+
 Mounts=(-v "$LICENCE:/opt/matlab/licenses/license.lic:ro")
 [[ -d "$SHIMS" ]] && Mounts+=(-v "$SHIMS:/opt/matlab_path/ToolboxCopies/IndividualFunctions:ro")
 Mounts+=(-v "$DATA_DIR:/dats:ro" -v "$OUT_ROOT:/out")
@@ -107,6 +117,6 @@ echo "  out : $Out"
 echo "  args: $*"
 docker rm -f "pipeline-$Name" >/dev/null 2>&1 || true
 MSYS_NO_PATHCONV=1 docker run --rm --name "pipeline-$Name" \
-    --mac-address "$MAC" "${Mounts[@]}" \
+    --mac-address "$MAC" ${Gpu[@]+"${Gpu[@]}"} "${Mounts[@]}" \
     "$IMAGE" bash "/out/.run_${Name}.sh"
 rm -f "$Script"
