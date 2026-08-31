@@ -105,6 +105,14 @@ if [[ -n "${WALINET_MODELS_SRC:-}" && -d "${WALINET_MODELS_SRC}" ]]; then
             echo "  ${name}: not in the source checkout, skipping"
             continue
         fi
+        # Re-copying rewrites a gigabyte that BuildKit then sees as a changed bind
+        # mount, which invalidates the WALINET layer and every layer after it,
+        # including the Julia precompile. cp -a preserves mtime, so an unchanged
+        # model compares equal and is left alone.
+        if [[ -f "${dest}/model_best.pt" ]]            && [[ "$(stat -c '%s %Y' "${src}/model_best.pt" 2>/dev/null)"                  == "$(stat -c '%s %Y' "${dest}/model_best.pt" 2>/dev/null)" ]]            && [[ -d "${dest}/configs" && -f "${dest}/run_summary.txt" ]]; then
+            echo "  ${name}: already staged from ${dir}, unchanged"
+            continue
+        fi
         mkdir -p "${dest}"
         # A half staged model is worse than none: the copy is a gigabyte and an
         # interrupted one leaves the directory present but empty, which surfaces

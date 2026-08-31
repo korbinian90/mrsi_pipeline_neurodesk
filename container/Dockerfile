@@ -505,6 +505,12 @@ RUN chmod -R a+rX /opt/Part1/Matlab_Compiled /opt/Part2/Matlab_Compiled \
 # MatlabFunctionsFolder is only a default: both InstallProgramPaths.sh scripts
 # reset it to their own checkout when they are sourced.
 # ---------------------------------------------------------------------------
+# The image has the MATLAB Runtime and no MATLAB, so the compiled binaries are the
+# only route it can take. Without this every call needs -K and otherwise dies at
+# the first step on matlabp, a Vienna path that cannot exist here. Requires Part1
+# at 06e53a8 or later, where the flag reads its default from the environment.
+ENV compiled_matlab_flag=1
+
 ENV JULIA_MRSI_PKG=/opt/MRSI.jl \
     JULIA_DEEPMRSI_PKG=/opt/deepmrsi/offline_pipeline \
     MNI_ATLAS_DIR=/opt/minc-${MINC_VERSION}/share/icbm152_model_09a \
