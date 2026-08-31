@@ -558,6 +558,9 @@ RUN mkdir -p /tmp/mrsi_processing && chmod a+rwX /tmp/mrsi_processing
 # the installed Runtime, the WALINET models present, and the default fitter.
 # ---------------------------------------------------------------------------
 COPY container/mrsi_versions.sh /usr/local/bin/mrsi-versions
+# The build context comes from a checkout, and a Windows one hands over CRLF,
+# which turns the shebang into /bin/bash^M and the script into "bad interpreter".
+RUN sed -i "s/[[:cntrl:]]*$//" /usr/local/bin/mrsi-versions
 RUN { echo "MRSIdeepFIRE  ${DEEPFIRE_REF}"; \
       echo "MRSI.jl       ${MRSIJL_REF}"; \
       echo "Part1         ${PART1_REF}"; \
