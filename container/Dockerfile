@@ -340,8 +340,11 @@ RUN pip install --no-cache-dir --upgrade pip setuptools==81.0.0 wheel \
 #
 # Do NOT set DEEPFIRE_REF to "main" or PART1_REF to "julia-reco": neither ref
 # exists, and the clone layer fails the build.
-ARG DEEPFIRE_REF=claude/container-fitting-selection-20260817
-ARG MRSIJL_REF=claude/optional-patrefscan-20260818
+#
+# DEEPFIRE_REF is pinned to a commit on master, not a branch, so a rebuild months
+# from now produces the same image. Bump it deliberately.
+ARG DEEPFIRE_REF=37fdea7120d1c33fbec8b5967e8b64d4bd9a6f34
+ARG MRSIJL_REF=21c21930df4f802d2bae2e6e4b348b29c394347a
 ARG PART1_REF=neurodesk
 ARG PART2_REF=neurodesk
 
@@ -363,7 +366,14 @@ RUN --mount=type=ssh \
 # deepMRSI/requirements.txt is checked in as UTF-16LE with a BOM. pip's legacy
 # auto-decoding of that is not something to rely on, so transcode to UTF-8
 # first rather than let the build depend on the pip version in the image.
-RUN iconv -f UTF-16 -t UTF-8 /opt/deepmrsi/deepMRSI/requirements.txt > /tmp/deepmrsi-requirements.txt \
+# requirements.txt used to be UTF-16 and is ASCII since the upstream compat fix,
+# so converting unconditionally turns a valid file into mojibake and pip rejects
+# the first "package name". Convert only when the BOM says to.
+RUN if head -c2 /opt/deepmrsi/deepMRSI/requirements.txt | od -An -tx1 | grep -qE 'ff fe|fe ff'; then \
+        iconv -f UTF-16 -t UTF-8 /opt/deepmrsi/deepMRSI/requirements.txt > /tmp/deepmrsi-requirements.txt; \
+    else \
+        tr -d '\r' < /opt/deepmrsi/deepMRSI/requirements.txt > /tmp/deepmrsi-requirements.txt; \
+    fi \
     && pip install --no-cache-dir -r /tmp/deepmrsi-requirements.txt \
     && rm -f /tmp/deepmrsi-requirements.txt \
     && pip install --no-cache-dir -e /opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/deep_crt_mrsi \
@@ -393,9 +403,17 @@ RUN python -c 'from deep_crt_mrsi.deepmrsi import process_deep_mrsi_offline' \
 # relocation works purely through the symlink below, so exporting it would
 # advertise a runtime knob that has no effect.
 ARG WALINET_MODEL_DIR=/opt/walinet_models
+# models/ is gitignored down to models/*/ and nothing else under it is tracked,
+# so a fresh clone has no models directory at all and there is nothing to move.
+# It used to exist because the legacy checkpoint was committed; once that was
+# replaced by the ignored 7T_Final and 3T_Final this step could no longer run.
 RUN WALINET_PKG=/opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/walinet/walinet \
-    && mv "${WALINET_PKG}/models" "${WALINET_MODEL_DIR}" \
-    && ln -s "${WALINET_MODEL_DIR}" "${WALINET_PKG}/models" \
+    && mkdir -p "${WALINET_MODEL_DIR}" \
+    && if [ -d "${WALINET_PKG}/models" ] && [ ! -L "${WALINET_PKG}/models" ]; then \
+           cp -a "${WALINET_PKG}/models/." "${WALINET_MODEL_DIR}/"; \
+           rm -rf "${WALINET_PKG}/models"; \
+       fi \
+    && ln -sfn "${WALINET_MODEL_DIR}" "${WALINET_PKG}/models" \
     && chmod -R a+rwX "${WALINET_MODEL_DIR}"
 
 # Bake the WALINET weights in. The image is handed over as a tarball or a .sif,
@@ -406,7 +424,7 @@ RUN WALINET_PKG=/opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/waline
 # see that directory's README.
 #
 # The staging tree is bind mounted from the build context instead of COPYed in.
-# A COPY layer would keep a second copy of the ~1 GB final_7T checkpoint in the
+# A COPY layer would keep a second copy of each ~1 GB checkpoint in the
 # shipped image forever, because moving it into place afterwards cannot remove
 # it from the layer underneath. BuildKit is already required for the
 # --mount=type=ssh clones above, so this adds no new constraint. Nothing is

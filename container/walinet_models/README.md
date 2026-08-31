@@ -7,29 +7,29 @@ not in any git repository are dropped before the build; the Dockerfile bind
 mounts it from the build context and `container/install_walinet_models.sh`
 puts each model where the `walinet` package looks for it.
 
-## The three models
+## The two models
 
 | Model name | Installed in the image as | You have to stage it |
 |---|---|---|
-| `legacy_7T` | `/opt/walinet_models/` (the models root) | **no** |
-| `final_7T` | `/opt/walinet_models/7T_Final` | yes, about 1 GB |
-| `final_3T` | `/opt/walinet_models/3T_Final` | yes |
+| `7T` | `/opt/walinet_models/7T_Final` | yes, about 1 GB |
+| `3T` | `/opt/walinet_models/3T_Final` | yes, about 1 GB |
 
 The names in the first column are what `walinet` selects by: `MODEL_LAYOUTS` in
-`walinet/package_config.py`, and `--walinet_model` on `deepmrsi.py`. The middle
-column is the directory that table maps each name to, which is why the staging
-directory names and the installed directory names differ.
+`walinet/package_config.py`, `--walinet_model` on `deepmrsi.py`, and `-Q`'s
+second argument in Part1. The middle column is the directory that table maps
+each name to, which is why the staging directory names and the installed
+directory names differ.
 
-`legacy_7T` needs no action at all. It is tracked in MRSIdeepFIRE, so it
-arrives with the pinned checkout and is selectable in every image.
+Neither arrives with the pinned checkout. Both are gitignored in MRSIdeepFIRE,
+so both have to be staged.
 
 ## What to stage, and where
 
 Drop the complete model directories here, named exactly:
 
 ```
-container/walinet_models/final_7T/
-container/walinet_models/final_3T/
+container/walinet_models/7T/
+container/walinet_models/3T/
 ```
 
 Nothing you put here is committed: `.gitignore` ignores everything except
@@ -51,11 +51,6 @@ why the build validates the directory instead of trusting it.
 needed: `src/` only serves a legacy loader and `loss.txt` is a training log.
 Leaving them out keeps the shipped image smaller. `package.sh` and the
 MRSIdeepFIRE release workflows exclude both for the same reason.
-
-`legacy_7T`'s own layout is the older one, a flat checkpoint next to
-`models/config.json`, with no `run_summary.txt` and no `configs/`. That is
-correct and not a half-installed model, and the build validates it against the
-legacy rule.
 
 ## Where the weights come from
 
@@ -82,19 +77,9 @@ which is also the right exclude list for staging by hand.
 
 ## Checking a copy is not truncated
 
-`legacy_7T`'s checkpoint is exactly **1,790,434 bytes** (it is the model shipped
-at MRSIdeepFIRE tag `v1.4.0`, where it is named `walinet_7T.pt`; on later refs
-the same bytes are `model_best.pt`). A different size means the checkout or the
-copy is wrong.
-
-```bash
-docker run --rm mrsi-pipeline:local \
-    stat -c '%s %n' /opt/walinet_models/model_best.pt
-```
-
-`final_7T`'s `model_best.pt` is roughly 1.0 GB. Copies over network drives
-truncate silently, so compare the byte count against the source before you
-build, not the rounded size:
+Each `model_best.pt` is roughly 1.0 GB. Copies over network drives truncate
+silently, so compare the byte count against the source before you build, not
+the rounded size:
 
 ```bash
 find container/walinet_models -name '*.pt' -printf '%s %p\n'
@@ -102,28 +87,55 @@ find container/walinet_models -name '*.pt' -printf '%s %p\n'
 
 ## Building
 
-Today's build, with only `legacy_7T` available, is the default and needs no
-argument:
+`REQUIRE_WALINET_MODELS` defaults to `all`, so a plain build already demands
+both models and a forgotten staging step fails the build instead of shipping a
+broken image:
 
 ```bash
 ./container/build.sh
 ```
 
-The image for the collaborator must demand all three, so a forgotten staging
-step fails the build instead of shipping a broken image:
+Narrow it with `none`, or with a comma separated list of the models whose
+absence should be fatal, for example `7T`:
 
 ```bash
-REQUIRE_WALINET_MODELS=all ./container/build.sh
+REQUIRE_WALINET_MODELS=7T ./container/build.sh
 ```
 
-`REQUIRE_WALINET_MODELS` also takes a comma separated list, for example
-`legacy_7T,final_7T`. Whatever is staged is validated in every build, required
-or not: a half-copied `final_7T` fails even the permissive default.
+Whatever is staged is validated in every build, required or not, so a
+half-copied `7T` fails the build even when it was not required.
 
-## Untested
+**`REQUIRE_WALINET_MODELS` does not control image size.** Installation is driven
+by what is staged: `install_walinet_models.sh` installs every model it finds in
+this directory, and the variable only decides which *absences* fail the build.
+Measured with both models staged, `REQUIRE_WALINET_MODELS=7T` installs both.
 
-The staging path has **never been run with the real `final_7T` or `final_3T`
-weights** - neither was available when this was written. It was verified only
-against fixture directories with the right file names, plus `bash -n` and
-`docker build --check`. Expect the first real staged build to be the one that
-proves it.
+To actually build a 7T-only image you have to stop 3T being staged as well, and
+all three of these together:
+
+* point `WALINET_MODELS_SRC` at a checkout with no `3T_Final`, since `build.sh`
+  re-stages both models from there on every run regardless of this variable,
+* leave `container/walinet_models/3T/` absent or empty,
+* set `REQUIRE_WALINET_MODELS=7T`, so the resulting absence is not fatal.
+
+Miss any one and the 3T weights come back.
+
+Check which models an image ended up with:
+
+```bash
+docker run --rm mrsi-pipeline:local \
+    python3 -c "import walinet.package_config as c; print(c.MODEL_CHOICES)"
+```
+
+## Status
+
+The staging path has been run with the real weights. Both models are staged
+here, about 1.07 GB each with `run_summary.txt` and `configs/` present, and
+`mrsi-pipeline:matlab-dev` was rebuilt from them on 2026-08-30 with
+`REQUIRE_WALINET_MODELS=7T,3T`. It reports `('7T', '3T', 'off')` and carries
+both `7T_Final` and `3T_Final`.
+
+That rebuild is also what retired the old model names. An image built from a
+`DEEPFIRE_REF` older than the renaming still reports the three pre-rename names
+and cannot select `7T` or `3T` at all, so check `MODEL_CHOICES` as above before
+trusting a WALINET result from an image you did not build yourself.

@@ -1,0 +1,114 @@
+# syntax=docker/dockerfile:1.7
+#
+# Development image: the pipeline image plus a real MATLAB, so the .m source can
+# be run and edited instead of only the compiled binaries.
+#
+# This image is NOT the one handed to collaborators. It needs a MATLAB licence,
+# which they do not have and should not need. The shipped image keeps the MATLAB
+# Runtime and the compiled binaries and requires no licence.
+#
+# Build:
+#   docker build -f container/Dockerfile.matlab-dev -t mrsi-pipeline:matlab-dev .
+#
+# Run: use container/matlab_shell.sh, which pins the MAC address the licence is
+# tied to and mounts the licence file.
+
+ARG BASE_IMAGE=mrsi-pipeline:local
+FROM ${BASE_IMAGE}
+
+# R2023a on purpose, not the newest. The vendored compiled binaries were built
+# against R2023a and the image's MATLAB Runtime is R2023a, and compile.m states
+# that the compiling MATLAB must match the runtime. Keeping them equal is what
+# makes a regenerated binary comparable against the one already in use, which is
+# the only way to tell a build-script mistake from a version difference. Bump it
+# as its own change, once the build is proven.
+ARG MATLAB_RELEASE=R2023a
+
+# Measured with matlab.codetools.requiredFilesAndProducts over all four Part1
+# entry points. Simulink and Simulink 3D Animation were on that list until two
+# rotation helpers were provided locally; see container/matlab_local/README.md.
+# MATLAB_Compiler is what provides mcc. Without it the .m sources can be run but
+# not compiled, so the deployed binaries could only ever be built elsewhere.
+ARG MATLAB_PRODUCTS="MATLAB Image_Processing_Toolbox Signal_Processing_Toolbox MATLAB_Compiler"
+
+ARG MATLAB_INSTALL_DIR=/opt/matlab
+
+USER root
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# mpm needs these to unpack and to talk to the download service. The base image
+# already carries curl, ca-certificates and unzip; the rest are what the MATLAB
+# installer itself links against on a headless machine.
+RUN apt-get update -qq \
+    && apt-get install -y -q --no-install-recommends \
+        libasound2 \
+        libc6 \
+        libcap2 \
+        libdrm2 \
+        libgl1 \
+        libglib2.0-0 \
+        libnspr4 \
+        libnss3 \
+        libpam0g \
+        libsndfile1 \
+        libxt6 \
+        procps \
+        zlib1g \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fL --retry 5 --retry-delay 5 --retry-connrefused \
+        https://www.mathworks.com/mpm/glnxa64/mpm -o /tmp/mpm \
+    && chmod +x /tmp/mpm \
+    && /tmp/mpm install \
+        --release="${MATLAB_RELEASE}" \
+        --destination="${MATLAB_INSTALL_DIR}" \
+        --products ${MATLAB_PRODUCTS} \
+    && rm -f /tmp/mpm \
+    && ln -sf "${MATLAB_INSTALL_DIR}/bin/matlab" /usr/local/bin/matlab
+
+# Part1 reads the interpreter path from this variable and its default is a
+# Vienna path that does not exist here. InstallProgramPaths.sh only sets it when
+# unset, so exporting it is enough to redirect the uncompiled route.
+ENV matlabp="${MATLAB_INSTALL_DIR}/bin/matlab"
+
+# Directories compile.m expects that no clone provides, staged locally. The bind
+# mount means they are read at build time without ever entering a git history.
+RUN --mount=type=bind,source=container/matlab_local,target=/tmp/matlab_local \
+    if [ -d /tmp/matlab_local/path ]; then \
+        mkdir -p /opt/matlab_path \
+        && cp -R /tmp/matlab_local/path/. /opt/matlab_path/ \
+        && echo "staged local MATLAB path additions:" \
+        && find /opt/matlab_path -maxdepth 2 -type d | sed 's/^/  /'; \
+    else \
+        echo "WARNING: container/matlab_local/path was not staged." >&2; \
+        echo "         The uncompiled route will fail to read a .dat without mapVBVD." >&2; \
+        mkdir -p /opt/matlab_path; \
+    fi
+
+# Prepend the staged directories to the MATLAB path for every session, so the
+# uncompiled route resolves them without each caller adding paths by hand.
+RUN mkdir -p "${MATLAB_INSTALL_DIR}/toolbox/local" \
+    && printf '%s\n' \
+        "if isfolder('/opt/matlab_path')" \
+        "    addpath(genpath('/opt/matlab_path'), '-begin');" \
+        "end" \
+        > "${MATLAB_INSTALL_DIR}/toolbox/local/startup.m"
+
+# Part1's run_julia_reco.jl activates JULIA_MRSI_PKG and then does "using JSON;
+# using MRSI". The base image points that variable at /opt/MRSI.jl, which is the
+# package rather than an environment, so activating it yields MRSI's own
+# dependencies and no JSON, and the reconstruction dies at the import with
+# "Package JSON not found in current path". The script's comment says the two
+# may live in their own environment, so build one that carries both.
+#
+# The same fix belongs in the base image. Kept here while the development route
+# is the only thing exercising it.
+RUN julia --startup-file=no -e 'using Pkg; Pkg.activate("/opt/julia_env"); Pkg.develop(path="/opt/MRSI.jl"); Pkg.add(["JSON", "MAT"]); Pkg.precompile()' \
+    && chmod -R a+rwX /opt/julia_env
+ENV JULIA_MRSI_PKG=/opt/julia_env
+
+RUN matlab -batch "disp(version); disp(matlabroot)" || \
+    echo "NOTE: MATLAB did not start. Expected until a licence is mounted; see container/matlab_local/README.md."
+
+LABEL org.opencontainers.image.title="MRSI processing pipeline (MATLAB development image)"
+LABEL org.opencontainers.image.description="Pipeline image plus MATLAB, for running the .m source. Requires a MATLAB licence. Not for distribution."

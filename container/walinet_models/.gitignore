@@ -1,8 +1,8 @@
 # Staging point for the WALINET weights that get baked into the image.
 #
-# The payloads are hundreds of MB (final_7T is about 1 GB) and must never be
-# committed. Ignore everything dropped in here, but keep the directory itself
-# and its documentation tracked: a fresh clone has to be able to build, and the
+# The payloads are about 1 GB per model and must never be committed. Ignore
+# everything dropped in here, but keep the directory itself and its
+# documentation tracked: a fresh clone has to be able to build, and the
 # Dockerfile reads this directory whether or not anything was staged.
 *
 !.gitignore

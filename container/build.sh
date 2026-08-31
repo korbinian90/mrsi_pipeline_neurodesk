@@ -19,7 +19,10 @@
 #   TORCH_INDEX_URL  PyTorch wheel index
 #   REQUIRE_WALINET_MODELS
 #                    which baked-in WALINET models the build insists on:
-#                    legacy_7T (default), all, or a comma separated list
+#                    which baked-in WALINET models must be present or the build
+#                    fails: all (default), none, or a comma separated list of the
+#                    model names 7T and 3T. It does NOT decide what gets installed;
+#                    everything staged is installed either way.
 #
 # Only the variables you actually set are passed on as --build-arg, so the
 # Dockerfile's ARG defaults stay the single source of truth for the rest. Do
@@ -29,7 +32,7 @@
 #   ./build.sh
 #   PART1_REF=3f2a1c9 ./build.sh
 #   TORCH_INDEX_URL=https://download.pytorch.org/whl/cu118 ./build.sh
-#   REQUIRE_WALINET_MODELS=all ./build.sh     # the shipping build
+#   REQUIRE_WALINET_MODELS=7T ./build.sh      # only 7T's absence fails the build
 #   ./build.sh --progress=plain --no-cache
 
 set -euo pipefail
@@ -103,8 +106,23 @@ if [[ -n "${WALINET_MODELS_SRC:-}" && -d "${WALINET_MODELS_SRC}" ]]; then
             continue
         fi
         mkdir -p "${dest}"
+        # A half staged model is worse than none: the copy is a gigabyte and an
+        # interrupted one leaves the directory present but empty, which surfaces
+        # three build steps later as "mv: cannot stat .../models" and reads like a
+        # Dockerfile bug. Fail here, where the cause is still visible.
         for entry in model_best.pt run_summary.txt configs; do
-            [[ -e "${src}/${entry}" ]] && cp -a "${src}/${entry}" "${dest}/"
+            if [[ ! -e "${src}/${entry}" ]]; then
+                echo "ERROR: ${name}: ${src}/${entry} is missing." >&2
+                exit 1
+            fi
+            if ! cp -a "${src}/${entry}" "${dest}/"; then
+                echo "ERROR: ${name}: copying ${entry} failed." >&2
+                exit 1
+            fi
+            if [[ ! -e "${dest}/${entry}" ]]; then
+                echo "ERROR: ${name}: ${entry} did not land in ${dest}." >&2
+                exit 1
+            fi
         done
         echo "  ${name}: staged from ${dir}"
     done
