@@ -75,7 +75,7 @@ check "forD_gpu_fit"       python -c 'import forD_gpu_fit; print("ok")'
 check "deepmrsi offline entry point" \
     python -c 'from deep_crt_mrsi.deepmrsi import process_deep_mrsi_offline; print("ok")'
 check "fitting backends selectable" \
-    python -c 'from deep_crt_mrsi import deepmrsi as d; print(d._resolve_auto_fitting("auto"), d._gpu_fit_device())'
+    python -c 'from deep_crt_mrsi import deepmrsi as d; print(d._resolve_auto_fitting("auto", {"larmor_frequency": 297.2e6}, online=False), d._gpu_fit_device())'
 check "walinet model names" \
     python -c 'from walinet.package_config import MODEL_LAYOUTS; print(",".join(sorted(MODEL_LAYOUTS)))'
 
