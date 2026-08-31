@@ -95,8 +95,8 @@ broken image:
 ./container/build.sh
 ```
 
-Narrow it with `none`, or with a comma separated list, for example `7T` for an
-image built without the 3T weights:
+Narrow it with `none`, or with a comma separated list of the models whose
+absence should be fatal, for example `7T`:
 
 ```bash
 REQUIRE_WALINET_MODELS=7T ./container/build.sh
@@ -104,6 +104,21 @@ REQUIRE_WALINET_MODELS=7T ./container/build.sh
 
 Whatever is staged is validated in every build, required or not, so a
 half-copied `7T` fails the build even when it was not required.
+
+**`REQUIRE_WALINET_MODELS` does not control image size.** Installation is driven
+by what is staged: `install_walinet_models.sh` installs every model it finds in
+this directory, and the variable only decides which *absences* fail the build.
+Measured with both models staged, `REQUIRE_WALINET_MODELS=7T` installs both.
+
+To actually build a 7T-only image you have to stop 3T being staged as well, and
+all three of these together:
+
+* point `WALINET_MODELS_SRC` at a checkout with no `3T_Final`, since `build.sh`
+  re-stages both models from there on every run regardless of this variable,
+* leave `container/walinet_models/3T/` absent or empty,
+* set `REQUIRE_WALINET_MODELS=7T`, so the resulting absence is not fatal.
+
+Miss any one and the 3T weights come back.
 
 Check which models an image ended up with:
 

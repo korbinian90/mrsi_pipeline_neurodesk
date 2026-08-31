@@ -240,11 +240,16 @@ the build insists on:
 
 ```bash
 ./container/build.sh                          # default: all, so both required
-REQUIRE_WALINET_MODELS=7T ./container/build.sh    # 7T only, no 3T weights
+REQUIRE_WALINET_MODELS=7T ./container/build.sh    # only 7T's absence is fatal
 ```
 
 Whatever is staged is validated either way, so a half-copied `7T` fails even
 the narrowed setting.
+
+This variable does **not** decide what the image contains, only which absences
+stop the build: everything staged is installed regardless. Dropping a model from
+the image means not staging it, which the
+[staging README](walinet_models/README.md) spells out.
 
 If no WALINET weights are wanted at all, set `"apply_walinet": false` in the
 `deep_crt_mrsi` `package_config.json` and the run skips water/lipid removal.
