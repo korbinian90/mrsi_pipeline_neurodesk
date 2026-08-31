@@ -19,7 +19,8 @@
 #   TORCH_INDEX_URL  PyTorch wheel index
 #   REQUIRE_WALINET_MODELS
 #                    which baked-in WALINET models the build insists on:
-#                    legacy_7T (default), all, or a comma separated list
+#                    all (default), none, or a comma separated list of
+#                    the model names 7T and 3T
 #
 # Only the variables you actually set are passed on as --build-arg, so the
 # Dockerfile's ARG defaults stay the single source of truth for the rest. Do
@@ -29,7 +30,7 @@
 #   ./build.sh
 #   PART1_REF=3f2a1c9 ./build.sh
 #   TORCH_INDEX_URL=https://download.pytorch.org/whl/cu118 ./build.sh
-#   REQUIRE_WALINET_MODELS=all ./build.sh     # the shipping build
+#   REQUIRE_WALINET_MODELS=7T ./build.sh      # 7T only, no 3T weights staged
 #   ./build.sh --progress=plain --no-cache
 
 set -euo pipefail

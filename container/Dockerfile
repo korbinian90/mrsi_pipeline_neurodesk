@@ -424,7 +424,7 @@ RUN WALINET_PKG=/opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/waline
 # see that directory's README.
 #
 # The staging tree is bind mounted from the build context instead of COPYed in.
-# A COPY layer would keep a second copy of the ~1 GB final_7T checkpoint in the
+# A COPY layer would keep a second copy of each ~1 GB checkpoint in the
 # shipped image forever, because moving it into place afterwards cannot remove
 # it from the layer underneath. BuildKit is already required for the
 # --mount=type=ssh clones above, so this adds no new constraint. Nothing is

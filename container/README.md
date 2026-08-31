@@ -225,16 +225,13 @@ does not export it.
 
 | Model | In the image | Staged by hand |
 |---|---|---|
-| `legacy_7T` | `/opt/walinet_models/` | no, it is tracked in MRSIdeepFIRE |
-| `final_7T` | `/opt/walinet_models/7T_Final` | yes, about 1 GB |
-| `final_3T` | `/opt/walinet_models/3T_Final` | yes |
+| `7T` | `/opt/walinet_models/7T_Final` | yes, about 1 GB |
+| `3T` | `/opt/walinet_models/3T_Final` | yes, about 1 GB |
 
-`legacy_7T` comes with the pinned MRSIdeepFIRE checkout and is selectable in
-every image with no user action. `final_7T` and `final_3T` are in no git
-repository: drop their directories into `container/walinet_models/final_7T/`
-and `container/walinet_models/final_3T/` before building. That directory's
-[README](walinet_models/README.md) has the exact file list, where the weights
-come from, and how to spot a truncated copy.
+Neither is in a git repository: drop the directories into
+`container/walinet_models/7T/` and `container/walinet_models/3T/` before
+building. That directory's [README](walinet_models/README.md) has the exact
+file list, where the weights come from, and how to spot a truncated copy.
 
 Every build validates what is installed, layout aware, and stops with the
 names of the missing files rather than producing an image whose model
@@ -242,12 +239,12 @@ selection dies mid-reconstruction. `REQUIRE_WALINET_MODELS` says which models
 the build insists on:
 
 ```bash
-./container/build.sh                          # default: only legacy_7T required
-REQUIRE_WALINET_MODELS=all ./container/build.sh   # the collaborator image
+./container/build.sh                          # default: all, so both required
+REQUIRE_WALINET_MODELS=7T ./container/build.sh    # 7T only, no 3T weights
 ```
 
-Whatever is staged is validated either way, so a half-copied `final_7T` fails
-even the permissive default. Build the shipping image with `all`.
+Whatever is staged is validated either way, so a half-copied `7T` fails even
+the narrowed setting.
 
 If no WALINET weights are wanted at all, set `"apply_walinet": false` in the
 `deep_crt_mrsi` `package_config.json` and the run skips water/lipid removal.
@@ -312,28 +309,27 @@ All four were silent failures: the image built and looked complete.
 
 ## Not yet verified
 
-Written honestly, because none of the following has been proven by a run:
+Written honestly, because none of the following is settled:
 
-1. **No end-to-end reconstruction has been run.** The smoke test proves every
-   component loads; it does not prove the pipeline produces correct output on a
-   real dataset. That is the next step, on Tom Shaw's 7T data.
-2. **The `final_7T` and `final_3T` WALINET weights have never been installed.**
-   Neither was available when the staging step was written, so it was exercised
-   only against fixture directories with the right file names. `legacy_7T`,
-   which comes from the checkout, is the only model any build so far installed.
-   All three names are selectable in `MODEL_LAYOUTS`.
-3. **The GPU variant has not been built.** Only the default CPU image exists.
-   `TORCH_INDEX_URL` pointing at a CUDA index is untested here.
-4. **`MNI_ATLAS_DIR` is still not consumed by Part2's `coregistration.sh`**,
+1. **End to end has been proven on a fixture, not on real 7T data.** Part1 ran
+   DAT to LCModel fits on a 16x16x5x840 fixture in `mrsi-pipeline:matlab-dev`,
+   across eleven reconstruction, decontamination and fitting configurations.
+   Nothing of production size has been run, in this image or that one.
+2. **The GPU variant has no clean build from this Dockerfile.** The image in
+   use is `mrsi-pipeline:gpufix`, an overlay adding the matching-distro
+   mritools on top of an older `mrsi-pipeline:gpu`. Both of its fixes are in
+   the canonical Dockerfile, but a build straight from it is unproven.
+3. **`MNI_ATLAS_DIR` is still not consumed by Part2's `coregistration.sh`**,
    which hardcodes `/net/mri.meduniwien.ac.at/...`. The variable is set and the
    atlas is present so upstream can start reading it.
-5. **`JULIA_VERSION` (1.12.6) was read from the MRSIdeepFIRE
+4. **`JULIA_VERSION` (1.12.6) was read from the MRSIdeepFIRE
    `offline_pipeline/Manifest.toml`.** If `DEEPFIRE_REF` moves to a manifest
    with another `julia_version`, bump the arg too, or Julia re-resolves the
    manifest instead of using the pinned versions.
-6. **`matlabp` still points at a Vienna path.** Nothing in this image runs
+5. **`matlabp` still points at a Vienna path.** Nothing in this image runs
    uncompiled MATLAB, so it is left at its default; only the compiled route
    (`-l`) is expected to work.
-7. **The default refs are branches, not commits.** Two builds a week apart can
-   differ. The verified build was pinned with
-   `PART1_REF=afa7ac4 PART2_REF=0f4ffe3`; pass SHAs for anything shipped.
+6. **`PART1_REF` and `PART2_REF` are still branch names.** Two builds a week
+   apart can differ. `DEEPFIRE_REF` and `MRSIJL_REF` are pinned to commits;
+   pin the other two as well for anything shipped. The verified build used
+   `PART1_REF=afa7ac4 PART2_REF=0f4ffe3`.
