@@ -213,10 +213,9 @@ ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${MATLAB_RUNTIME_ROOT}/runtime/glnxa64:$
 #
 # The recipe installed it for Part2/Bash_Functions/Segmentation/synthseg.sh,
 # which calls mri_synthseg. That branch is being deleted from Part2, and none of
-# the 11 unique compiled MATLAB binaries in this repository (4 in
-# Part1/Matlab_Compiled, 4 in Part2/Matlab_Compiled, 3 in matlab_compiled)
-# contains a single FreeSurfer string. Its X11/csh apt prerequisites went with
-# it (see the base layer).
+# the compiled MATLAB binaries this image installs (5 in Part1/Matlab_Compiled,
+# 4 in Part2/Matlab_Compiled) contains a single FreeSurfer string. Its X11/csh
+# apt prerequisites went with it (see the base layer).
 #
 # NOT INSTALLED: HD-BET and its CUDA torch / nnU-Net closure (~6.3 GB)
 #

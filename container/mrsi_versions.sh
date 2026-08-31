@@ -24,3 +24,17 @@ printf 'WALINET models %s\n' "$(ls /opt/walinet_models 2>/dev/null | tr '\n' ' '
 printf 'walinet model  %s\n' "$(json_field "$Config/walinet/package_config.json" model_relative_path)"
 printf 'fitting        %s\n' "$(json_field "$Config/deep_crt_mrsi/package_config.json" fitting)"
 printf 'apply_walinet  %s\n' "$(json_field "$Config/deep_crt_mrsi/package_config.json" apply_walinet)"
+echo
+
+# A compiled binary carries no version of its own, and mcc seals the source into
+# an encrypted archive, so the hash is the only thing that ties one to the commit
+# the refs above name.
+echo 'compiled MATLAB binaries'
+for Dir in /opt/Part1/Matlab_Compiled /opt/Part2/Matlab_Compiled; do
+    Part=$(basename "$Dir" | sed 's/_Compiled//')
+    for Bin in "$Dir"/*; do
+        [ -f "$Bin" ] && [ -x "$Bin" ] || continue
+        case "$Bin" in *.sh|*.txt|*.json|*.log) continue ;; esac
+        echo "  $Part $(basename "$Bin") $(sha256sum "$Bin" | cut -c1-16)"
+    done
+done
