@@ -48,6 +48,9 @@ docker run --rm --gpus all \
   image at the paths above; they are only needed for the LCModel route but are
   read either way.
 * `-S auto` selects the Julia reconstruction. Leave it off for the MATLAB one.
+  Either way the MATLAB steps run as compiled binaries against the Runtime, which
+  is the only MATLAB this image has; `-K` selects that explicitly and is the
+  default here, so it does not have to be passed.
 * `-t` an anatomical image for the mask. Without it, use `-m "bet,-f 0.65 -g 0.1"`
   to mask from the reference scan instead.
 

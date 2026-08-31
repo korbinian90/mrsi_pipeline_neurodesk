@@ -457,6 +457,8 @@ RUN echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" \
          && echo "PROBE: unwrapped julia OK" \
          || echo "PROBE: unwrapped julia FAILED (LD_LIBRARY_PATH conflict)"; } \
     && julia --startup-file=no -e 'using Pkg; Pkg.develop(path="/opt/MRSI.jl"); Pkg.precompile()' \
+    && julia --startup-file=no -e 'using Pkg; Pkg.activate("/opt/julia_env"); Pkg.develop(path="/opt/MRSI.jl"); Pkg.add(["JSON", "MAT"]); Pkg.precompile()' \
+    && chmod -R a+rwX /opt/julia_env \
     && julia --startup-file=no --project=/opt/deepmrsi/offline_pipeline -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()' \
     && chmod -R a+rwX /opt/julia_depot
 
@@ -511,11 +513,11 @@ RUN chmod -R a+rX /opt/Part1/Matlab_Compiled /opt/Part2/Matlab_Compiled \
 # at 06e53a8 or later, where the flag reads its default from the environment.
 ENV compiled_matlab_flag=1
 
-ENV JULIA_MRSI_PKG=/opt/MRSI.jl \
+ENV JULIA_MRSI_PKG=/opt/julia_env \
     JULIA_DEEPMRSI_PKG=/opt/deepmrsi/offline_pipeline \
     MNI_ATLAS_DIR=/opt/minc-${MINC_VERSION}/share/icbm152_model_09a \
     MatlabFunctionsFolder=/opt/Part1/MatlabFunctions \
-    MatlabCompiledFunctions=Matlab_Compiled
+    MatlabCompiledFunctions=/opt/Part1/Matlab_Compiled
 ENV PATH="/opt/Part1:/opt/Part2:${PATH}"
 
 # Site paths consumed by both InstallProgramPaths.sh files.
