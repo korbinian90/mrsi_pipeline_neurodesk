@@ -316,10 +316,13 @@ All four were silent failures: the image built and looked complete.
 
 Written honestly, because none of the following is settled:
 
-1. **End to end has been proven on a fixture, not on real 7T data.** Part1 ran
-   DAT to LCModel fits on a 16x16x5x840 fixture in `mrsi-pipeline:matlab-dev`,
-   across eleven reconstruction, decontamination and fitting configurations.
-   Nothing of production size has been run, in this image or that one.
+1. **End to end has been proven on a fixture, and the fixture cannot exercise
+   coil combination.** Part1 ran DAT to LCModel fits on a 16x16x5x840 fixture in
+   `mrsi-pipeline:matlab-dev`, across eleven reconstruction, decontamination and
+   fitting configurations. That fixture has `n_channels = 1`, a single-channel
+   volume coil, so MUSICAL never runs and none of those eleven results says
+   anything about coil combination. Nothing of production size has been run
+   either, in this image or that one.
 2. **The GPU variant has no clean build from this Dockerfile.** The image in
    use is `mrsi-pipeline:gpufix`, an overlay adding the matching-distro
    mritools on top of an older `mrsi-pipeline:gpu`. Both of its fixes are in

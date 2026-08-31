@@ -484,11 +484,13 @@ RUN --mount=type=ssh \
 # that is what turns the Julia output into LCModel input, so without these
 # files the container silently falls back to MATLAB for everything.
 #
-# julia_write_lcm_files exists only in the older top-level matlab_compiled/
-# directory; the other binaries are taken from the newer per-part ones.
+# All five Part1 entry points now come from one compile of one source commit,
+# through container/compile_matlab.sh, so the whole set matches PART1_REF and
+# the Runtime this image installs. The top-level matlab_compiled/ copy of
+# julia_write_lcm_files used to be layered on top here; it was built against
+# Runtime 9.11 and aborts at load under the 9.14 installed below.
 COPY Part1/Matlab_Compiled/ /opt/Part1/Matlab_Compiled/
 COPY Part2/Matlab_Compiled/ /opt/Part2/Matlab_Compiled/
-COPY matlab_compiled/julia_write_lcm_files /opt/Part1/Matlab_Compiled/julia_write_lcm_files
 RUN chmod -R a+rX /opt/Part1/Matlab_Compiled /opt/Part2/Matlab_Compiled \
     && chmod a+rx /opt/Part1/Matlab_Compiled/* /opt/Part2/Matlab_Compiled/* \
     && test -x /opt/Part1/Matlab_Compiled/julia_write_lcm_files \
@@ -547,6 +549,23 @@ RUN mkdir -p /tmp/mrsi_processing && chmod a+rwX /tmp/mrsi_processing
 # is built by default reports torch.cuda.is_available() == False even when
 # libcuda is present.
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Provenance
+#
+# The first question about a number that looks wrong is which sources produced
+# it, and the image carries no .git to answer it. The four refs are written out
+# here and read back by mrsi-versions, which also reports what they cannot say:
+# the installed Runtime, the WALINET models present, and the default fitter.
+# ---------------------------------------------------------------------------
+COPY container/mrsi_versions.sh /usr/local/bin/mrsi-versions
+RUN { echo "MRSIdeepFIRE  ${DEEPFIRE_REF}"; \
+      echo "MRSI.jl       ${MRSIJL_REF}"; \
+      echo "Part1         ${PART1_REF}"; \
+      echo "Part2         ${PART2_REF}"; } > /opt/mrsi_build_refs \
+    && chmod a+rx /usr/local/bin/mrsi-versions \
+    && chmod a+r /opt/mrsi_build_refs \
+    && mrsi-versions
 
 WORKDIR /data
 CMD ["/bin/bash"]
