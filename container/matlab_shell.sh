@@ -18,6 +18,14 @@
 #   OUT        host directory mounted at /out
 set -euo pipefail
 
+# Git Bash rewrites any argument that looks like a Unix path into a Windows one.
+# That mangles the -v target below into a second host path, so the licence is
+# never mounted, MATLAB fails with "License Manager Error -1", and Docker leaves
+# a directory named 'license.lic;C' beside the real licence as the only clue.
+case "$(uname -s 2>/dev/null || echo unknown)" in
+    MINGW*|MSYS*|CYGWIN*) export MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' ;;
+esac
+
 IMAGE=${IMAGE:-mrsi-pipeline:matlab-dev}
 MAC=${MAC:-02:42:ac:11:00:99}
 MATLAB_USER=${MATLAB_USER:-root}
