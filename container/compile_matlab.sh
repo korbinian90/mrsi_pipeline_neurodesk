@@ -39,6 +39,31 @@ if [[ ! -x "$MATLAB_DIR/bin/mcc" ]]; then
 fi
 [[ -f "$PART1_DIR/compile.m" ]] || { echo "ERROR: no $PART1_DIR/compile.m." >&2; exit 1; }
 
+# A licence that did not mount lands here as a directory rather than a file, and
+# MATLAB then reports "License Manager Error -1 ... System Error: 2", which reads
+# as a licensing problem and is not one. Say what it is instead.
+Licence="$MATLAB_DIR/licenses/license.lic"
+if [[ -e "$Licence" && ! -s "$Licence" ]]; then
+    echo "ERROR: $Licence is not a file. A -v mount whose source does not exist" >&2
+    echo "       is created by Docker as an empty directory. Mount the licence from" >&2
+    echo "       the main checkout: container/matlab_local/ is gitignored, so a git" >&2
+    echo "       worktree of this repository does not have it." >&2
+    exit 1
+fi
+
+# Compile from the container's own filesystem, never from the caller's mount.
+# mcc against a -v mounted checkout ran at 14% of one core and produced nothing in
+# 37 minutes, against about two minutes from a local tree, so this is not a tidiness
+# preference. The build writes into the tree as well, which a read-only mount would
+# refuse. Set COPY_SOURCE=no to compile in place.
+if [[ "${COPY_SOURCE:-yes}" != "no" ]]; then
+    Local=$(mktemp -d)/Part1
+    echo "Copying $PART1_DIR into the container filesystem"
+    cp -a "$PART1_DIR" "$Local"
+    rm -rf "$Local/.git"
+    PART1_DIR="$Local"
+fi
+
 # The image's MatlabFunctions holds only MRSIMatlabFunctions. compile.m also
 # names ToolboxCopies/IndividualFunctions and four MatlabFunctions_3rdParty
 # packages, and refuses outright when one is missing, so the overlay that supplies
