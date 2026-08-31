@@ -128,6 +128,34 @@ Runs without WALINET keep the full acquisition.
 
 `deepMRSI/CITATIONS.txt` lists what to cite for the components that ran.
 
+## What has been checked
+
+Sixteen configurations on a 16x16x5, 840-point fixture, run against this image with
+**data mounts only**, so what was tested is what ships.
+
+| | LCModel | gpufit | dlfit |
+|---|---|---|---|
+| Julia, no decontamination | 1280/1280 | maps | maps |
+| Julia, L2 | 1280/1280 | maps | maps |
+| Julia, L1 | 1280/1280 | - | - |
+| Julia, WALINET 7T | 1280/1280 | maps | maps |
+| MATLAB, no decontamination | 1280/1280 | - | - |
+| MATLAB, L2 | 1280/1280 | - | - |
+
+Three refusals behave as intended: WALINET without `-S`, WALINET asked for through
+both `-L` and `-Q`, and the 3T model on 7T data.
+
+The reconstruction was checked against MRSI.jl rather than assumed: `julia_csi.raw`
+from this container is **bit-identical** to a direct `MRSI.reconstruct` with the same
+keywords, 0 of 1,075,200 elements differing, and `CombinedCSI.mat` holds that same
+array unchanged. The B0 map on the fixture has a median of -1.7 Hz and a 5-95% range
+of -41 to +44 Hz, which is the right order for 7T.
+
+**What that fixture cannot tell you.** It has `n_channels = 1`, a single-channel
+volume coil, so MUSICAL coil combination never runs in any of the sixteen. It is
+also low SNR, so the CRLBs on it say nothing about fit quality. Both are covered by
+the in-vivo runs recorded separately, not by this table.
+
 ## What is not covered
 
 * **Water referencing** (`-w "W1,<dat>"`) is present but not validated in this
