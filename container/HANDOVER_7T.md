@@ -19,6 +19,12 @@ docker run --rm mrsi-pipeline:7t-tom mrsi-versions
 MATLAB Runtime, the WALINET models present and the default fitter. Quote its
 output in any question about a result.
 
+Its last three lines, `walinet model`, `fitting` and `apply_walinet`, come from the
+package configuration and describe the **online scanner route only**. The command
+line below takes all three from `-L`, `-0` and `-Q` instead, so `apply_walinet
+True` there does not mean this pipeline applies WALINET unless asked. It does not:
+without `-L WALINET` no removal runs.
+
 With Apptainer instead of Docker:
 
 ```bash
