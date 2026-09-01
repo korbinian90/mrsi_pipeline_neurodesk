@@ -21,6 +21,8 @@ printf 'torch          %s\n' "$(python3 -c 'import torch; print(torch.__version_
 printf 'CUDA visible   %s\n' "$(python3 -c 'import torch; print(torch.cuda.is_available())' 2>/dev/null)"
 echo
 printf 'WALINET models %s\n' "$(ls /opt/walinet_models 2>/dev/null | tr '\n' ' ')"
+echo
+echo 'online route defaults, overridden by -L, -0 and -Q in Part1'
 printf 'walinet model  %s\n' "$(json_field "$Config/walinet/package_config.json" model_relative_path)"
 printf 'fitting        %s\n' "$(json_field "$Config/deep_crt_mrsi/package_config.json" fitting)"
 printf 'apply_walinet  %s\n' "$(json_field "$Config/deep_crt_mrsi/package_config.json" apply_walinet)"
