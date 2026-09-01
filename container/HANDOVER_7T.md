@@ -55,7 +55,9 @@ docker run --rm --gpus all \
     -b /opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/forD/data/basis/fid_1.300000ms.basis \
     -j /opt/Part1/ControlFiles/LCModel_Control_7T_3D_CRT_test_v1.m \
     -S auto \
-    -Q gpufit 7T \
+    -L "WALINET,7T" \
+    -0 \
+    -Q gpufit \
     -t /out/anat.mnc
 ```
 
@@ -64,6 +66,9 @@ docker run --rm --gpus all \
 * `-b` the LCModel basis, `-j` the LCModel control file. Both are inside the
   image at the paths above; they are only needed for the LCModel route but are
   read either way.
+* `-L "WALINET,7T"` removes water and lipids, `-0` aligns the spectra first,
+  and `-Q gpufit` fits what comes out. The three are independent: drop any of
+  them and the rest still work.
 * `-S auto` selects the Julia reconstruction. Leave it off for the MATLAB one.
   Either way the MATLAB steps run as compiled binaries against the Runtime, which
   is the only MATLAB this image has; `-K` selects that explicitly and is the
@@ -87,20 +92,25 @@ and is the route everything else here was validated against.
 | omitted | no decontamination |
 | `-L "L2,1e-3"` | L2 regularization after Bilgic et al. The value is data dependent; try a few |
 | `-L "L1,10"` | L1 regularization, 10 iterations |
-| `-L "WALINET,7T"` | the neural network removal, then LCModel fits the cleaned spectra |
+| `-L "WALINET,7T"` | the neural network removal |
 
-**Fitting**, `-Q <fitter> <walinet model>`:
+`-L` chooses the decontamination and nothing else. WALINET combines with any
+fitter, exactly as L1 and L2 do.
+
+**Fitting**, `-Q <fitter>`:
 
 | | |
 |---|---|
 | omitted | LCModel |
-| `-Q gpufit 7T` | the GPU fitter, with WALINET removal first. Maps go to `<out>/deepMRSI` as NIfTI |
-| `-Q gpufit off` | the GPU fitter, no WALINET |
-| `-Q dlfit 7T` | the deep-learning fitter. 840-point grid only |
+| `-Q gpufit` | the GPU fitter. Maps go to `<out>/deepMRSI` as NIfTI |
+| `-Q dlfit` | the deep-learning fitter. 840-point grid only |
 
-`-L WALINET` and `-Q <fitter> 7T` both apply WALINET. Asking for both is refused
-rather than removing water and lipids twice. Use `-L` when you want LCModel to do
-the fitting and `-Q` when you want the deep fitter.
+**B0 correction**, `-0`: applies the measured field shift to the spectra directly
+before WALINET, which is the order the online scanner pipeline uses. It has no
+effect unless WALINET runs. On the fixture it lowers the CRLB of every metabolite
+and raises the amplitudes, which is the signature of a real frequency alignment
+rather than a rescaling. Off by default, so a run without it reproduces earlier
+results.
 
 WALINET needs `-S auto`: the MATLAB reconstruction has no WALINET, so asking for
 it without the Julia route stops rather than quietly reconstructing with no
@@ -135,15 +145,23 @@ Sixteen configurations on a 16x16x5, 840-point fixture, run against this image w
 
 | | LCModel | gpufit | dlfit |
 |---|---|---|---|
-| Julia, no decontamination | 1280/1280 | maps | maps |
-| Julia, L2 | 1280/1280 | maps | maps |
+| Julia, no decontamination | 1280/1280 | 46 maps | 52 maps |
+| Julia, L2 | 1280/1280 | 46 maps | 52 maps |
 | Julia, L1 | 1280/1280 | - | - |
-| Julia, WALINET 7T | 1280/1280 | maps | maps |
+| Julia, WALINET 7T | 1280/1280 | 46 maps | 52 maps |
+| Julia, WALINET 7T with `-0` | - | 46 maps | - |
 | MATLAB, no decontamination | 1280/1280 | - | - |
 | MATLAB, L2 | 1280/1280 | - | - |
 
-Three refusals behave as intended: WALINET without `-S`, WALINET asked for through
-both `-L` and `-Q`, and the 3T model on 7T data.
+Also checked: `-t` with `-m bet`, which fits the brain-extracted mask rather than
+the full grid and returns 44 of 44 voxels.
+
+Map counts no longer depend on the decontamination, so a script that reads
+`deepMRSI/NAA.nii.gz` finds the same name whichever `-L` ran.
+
+Two refusals behave as intended: WALINET without `-S`, and the 3T model on 7T
+data. Both stop with a message naming the mismatch instead of reconstructing
+without decontamination or removing against the wrong field.
 
 The reconstruction was checked against MRSI.jl rather than assumed: `julia_csi.raw`
 from this container is **bit-identical** to a direct `MRSI.reconstruct` with the same
