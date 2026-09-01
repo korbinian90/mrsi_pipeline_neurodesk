@@ -32,7 +32,7 @@ rebuilt exactly. `mrsi-versions` inside the image reports the same four values,
 so a result can always be traced back without consulting this file.
 
 ```bash
-IMAGE=mrsi-pipeline:7t-tom  DEEPFIRE_REF=10f873bff14607aac1c821e4cf05667a5873ee57  PART1_REF=dce815e  PART2_REF=0f4ffe3b4bd4aaade4800ca2710f67783676523f  MRSIJL_REF=21c21930df4f802d2bae2e6e4b348b29c394347a  REQUIRE_WALINET_MODELS=7T  TORCH_INDEX_URL=https://download.pytorch.org/whl/cu118  ./container/build.sh
+IMAGE=mrsi-pipeline:7t-tom  DEEPFIRE_REF=7cc1f1037aa3f0fd2fe1b5e70bed33fb680cc116  PART1_REF=f42ea63ea706a870fd734c8719827190b972deac  PART2_REF=0f4ffe3b4bd4aaade4800ca2710f67783676523f  MRSIJL_REF=21c21930df4f802d2bae2e6e4b348b29c394347a  REQUIRE_WALINET_MODELS=7T  TORCH_INDEX_URL=https://download.pytorch.org/whl/cu118  ./container/build.sh
 ```
 
 `REQUIRE_WALINET_MODELS=7T` asserts the 7T weights are present. It does not
