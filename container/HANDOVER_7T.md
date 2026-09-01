@@ -180,6 +180,38 @@ volume coil, so MUSICAL coil combination never runs in any of the sixteen. It is
 also low SNR, so the CRLBs on it say nothing about fit quality. Both are covered by
 the in-vivo runs recorded separately, not by this table.
 
+### In vivo
+
+Two runs on this image, not on the fixture.
+
+**32 channels, 840 points.** Reconstruction bit-identical to a direct
+`MRSI.reconstruct` here too, 0 of 3,440,640 elements differing, so the flag mapping
+is exact including MUSICAL coil combination.
+
+**58 x 58 x 21, 864 points, 40 GB.** The same shape and readout length as the data
+this build is for, run with `-S auto -0 -L "WALINET,7T" -Q gpufit`. Exit 0 in 107
+minutes on one GPU, 46 maps, NAA at 19% median CRLB over 12,984 voxels. The crop
+fired: 864 acquired, 840 into the removal, the original kept beside it as
+`CombinedCSI_beforeWalinet.mat`, and the fits reporting 840.
+
+**The fitter was checked against LCModel** rather than only against itself. On the
+same voxels of the same 32-channel dataset, gpufit and LCModel agree to 3 to 8% on
+the metabolites either determines well:
+
+| | LCModel | gpufit |
+|---|---|---|
+| tNAA / tCr | 1.794 | 1.842 |
+| NAA / tCr | 1.510 | 1.583 |
+| Glu / tCr | 1.202 | 1.309 |
+| Tau / tCr | 0.326 | 0.341 |
+| GSH / tCr | 0.186 | 0.173 |
+
+Two disagree and are worth knowing before relying on them: `mIns`, where gpufit reads
+about twice LCModel, and `Gln`, where it reads about a third. Both are present
+whichever way the run is configured, so they belong to the fitter or its basis rather
+than to a setting.
+
+
 ## What is not covered
 
 * **Water referencing** (`-w "W1,<dat>"`) is present but not validated in this
