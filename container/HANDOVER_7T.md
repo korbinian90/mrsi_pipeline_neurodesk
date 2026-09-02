@@ -15,6 +15,14 @@ gunzip -c mrsi-pipeline_7t.tar.gz | docker load
 docker run --rm mrsi-pipeline:7t-tom mrsi-versions
 ```
 
+The tarball is 16.4 GB. Check it arrived intact before loading, since a truncated
+transfer fails in confusing ways much later:
+
+```bash
+sha256sum mrsi-pipeline_7t.tar.gz
+# 5caa1a58a7bf53be4dd001267f0b8a05384868407ca95fbb8d0dde93b645aafa
+```
+
 `mrsi-versions` prints the four source commits the image was built from, the
 MATLAB Runtime, the WALINET models present and the default fitter. Quote its
 output in any question about a result.
