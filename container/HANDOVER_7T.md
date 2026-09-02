@@ -86,6 +86,17 @@ docker run --rm --gpus all \
 minutes on a GPU and hours on a CPU. Without a visible device the same algorithm
 runs on the CPU and says so in the log; it does not change method.
 
+Check the GPU is actually visible before starting a long run, because the
+fallback is silent:
+
+```bash
+docker run --rm --gpus all mrsi-pipeline:7t-tom mrsi-versions
+```
+
+`CUDA visible True` means the fitting will use it. `False` on a machine that has
+a GPU almost always means the driver is older than the CUDA 11.8 build of torch
+needs. The run still completes, correctly, just far slower.
+
 ## The settings that matter
 
 **Reconstruction.** `-S auto` for Julia, omit for MATLAB. Julia uses less memory
