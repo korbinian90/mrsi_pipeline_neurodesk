@@ -62,15 +62,6 @@ if [[ -n "${DEEPFIRE_SRC:-}" ]]; then
     fi
 fi
 
-# Settings a run needs that are not Part1 arguments. Forwarded only when set, so
-# the acceptance run's environment is exactly the image's own.
-Env=()
-# EnvName, not Name: Name is this script's run name and a loop over it renames
-# the output directory after the last variable checked.
-for EnvName in JULIA_RECO_MATLAB_PARITY; do
-    [[ -n "${!EnvName:-}" ]] && Env+=(-e "$EnvName=${!EnvName}")
-done
-
 Gpu=()
 if [[ "${USE_GPU:-auto}" != "no" ]] && nvidia-smi -L >/dev/null 2>&1; then
     Gpu=(--gpus all)

@@ -26,6 +26,9 @@ Configs=(
   # -0 with no WALINET: nothing corrects before deepmrsi, so deepmrsi does it.
   # The parity partner of the two above; all three must measure the same map.
   "julia-b0-gpufit|0|-S auto|-A|Patref|-Q|gpufit"
+  # The same reconstruction asked to reproduce MATLAB instead of the online
+  # route. compare_b0_maps.py checks it against matlab-patref-gpufit.
+  "julia-patref-matlab-gpufit|0|-S auto,matlab|-A|Patref|-Q|gpufit"
   # -A Patref on the MATLAB reconstruction. Same estimator, other implementation:
   # compare_b0_maps.py checks the two against each other and against calculate_B0.
   "matlab-patref-gpufit|0||-A|Patref|-Q|gpufit"

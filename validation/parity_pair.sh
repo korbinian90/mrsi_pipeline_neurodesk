@@ -14,8 +14,8 @@ mkdir -p "$OutRoot"
 
 # No -t and no -m: masking needs an anatomical in the CSI geometry, which a
 # dataset from another session does not have, and the field map does not use it.
-JULIA_RECO_MATLAB_PARITY= "$Here/run_matrix.sh" matlab-patref "$Dat" "$OutRoot" -- -A Patref -Q gpufit
-JULIA_RECO_MATLAB_PARITY=true "$Here/run_matrix.sh" julia-patref "$Dat" "$OutRoot" -- -S auto -A Patref -Q gpufit
+"$Here/run_matrix.sh" matlab-patref "$Dat" "$OutRoot" -- -A Patref -Q gpufit
+"$Here/run_matrix.sh" julia-patref "$Dat" "$OutRoot" -- -S "auto,matlab" -A Patref -Q gpufit
 
 MSYS_NO_PATHCONV=1 docker run --rm -v "$OutRoot:/out" \
     -v "$Here/compare_b0_maps.py:/out/compare_b0_maps.py:ro" \
