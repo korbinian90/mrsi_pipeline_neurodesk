@@ -117,7 +117,9 @@ survives() {
         fails=$((fails + 1))
     fi
 }
-survives "Part1 keeps JULIA_MRSI_PKG"   /opt/Part1/InstallProgramPaths.sh JULIA_MRSI_PKG     /opt/MRSI.jl
+# The environment, not the clone: run_julia_reco.jl activates this directory,
+# and its manifest devs MRSI from the pinned /opt/MRSI.jl.
+survives "Part1 keeps JULIA_MRSI_PKG"   /opt/Part1/InstallProgramPaths.sh JULIA_MRSI_PKG     /opt/julia_env
 survives "Part1 keeps JULIA_DEEPMRSI"   /opt/Part1/InstallProgramPaths.sh JULIA_DEEPMRSI_PKG /opt/deepmrsi/offline_pipeline
 survives "Part1 keeps LCM_Path"         /opt/Part1/InstallProgramPaths.sh LCM_Path           "${LCM_Path}"
 survives "Part1 runs LCModel locally"   /opt/Part1/InstallProgramPaths.sh RunLCModelOn       ""
