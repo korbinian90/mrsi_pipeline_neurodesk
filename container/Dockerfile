@@ -324,10 +324,10 @@ RUN pip install --no-cache-dir --upgrade pip setuptools==81.0.0 wheel \
 # Part1 and Part2 track "neurodesk": master plus the Julia dispatch (-S), the
 # InitialParameters.json sidecar and the deep-learning fit path (-Q).
 #
-# DEEPFIRE_REF carries the WALINET model selector. On "master" the selector does
-# not exist and walinet/package_config.json still names a 7T_Final directory
-# that is not in git, so an image built from master dies at run time when it
-# loads the model.
+# The WALINET model selector (--walinet_model, and -L "WALINET,<field>" through
+# Part1) is on master. The weights it names are gitignored, so the clone carries
+# none: build.sh stages them from a local checkout into the build context, and
+# REQUIRE_WALINET_MODELS decides whether a missing one fails the build.
 #
 # MRSIJL_REF and the vendored offline_pipeline/MRSI subtree inside MRSIdeepFIRE
 # must name the SAME MRSI.jl commit. The image installs MRSI.jl twice: once at
@@ -342,8 +342,8 @@ RUN pip install --no-cache-dir --upgrade pip setuptools==81.0.0 wheel \
 #
 # DEEPFIRE_REF is pinned to a commit on master, not a branch, so a rebuild months
 # from now produces the same image. Bump it deliberately.
-ARG DEEPFIRE_REF=37fdea7120d1c33fbec8b5967e8b64d4bd9a6f34
-ARG MRSIJL_REF=21c21930df4f802d2bae2e6e4b348b29c394347a
+ARG DEEPFIRE_REF=f55ef98525c0078a40a17770ecfd4bfbaba58877
+ARG MRSIJL_REF=bf138176a6419b008b9a45432d896f8db25d044d
 ARG PART1_REF=neurodesk
 ARG PART2_REF=neurodesk
 
