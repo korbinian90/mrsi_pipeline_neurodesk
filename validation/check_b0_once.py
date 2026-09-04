@@ -26,7 +26,13 @@ import sys
 import nibabel as nib
 import numpy as np
 
-PART1_CORRECTED = "walinet_clean_csi: B0 map median"
+# Part1 corrects before the fitting step, and which line says so depends on the
+# route: the Julia one runs apply_b0_patref.py, the MATLAB one does it inside the
+# reconstruction and only the record it writes afterwards is visible.
+PART1_CORRECTED = (
+    "apply_b0_patref: B0 map median",
+    "'b0_corrected': True}",
+)
 # deepmrsi records how the FIDs it fitted came to be corrected, in the
 # NIfTI-MRS ProcessingApplied shape it also writes into meta.json.
 DEEPMRSI_APPLIED = "calculate_B0 + B0_correct_fids"
@@ -57,12 +63,37 @@ def b0_provenance(meta):
     return ""
 
 
+FELL_BACK = "Use the MATLAB reconstruction instead."
+
+
+def reconstruction_route(log):
+    """Which reconstruction ran, which is not always the one that was asked for."""
+    for line in log.splitlines():
+        if "Part1_ProcessMRSI.sh -c " in line:
+            asked_julia = "-S" in line.split("Part1_ProcessMRSI.sh", 1)[1].split()
+            return "julia" if asked_julia and FELL_BACK not in log else "matlab"
+    return "matlab"
+
+
+def exit_codes(root):
+    """Per-run exit status, so a refused run is not asked to have corrected."""
+    path = os.path.join(root, "matrix_results.tsv")
+    codes = {}
+    if os.path.isfile(path):
+        with open(path) as f:
+            for line in f:
+                fields = line.split("\t")
+                if len(fields) > 1 and fields[1].startswith("exit="):
+                    codes[fields[0]] = int(fields[1][5:])
+    return codes
+
+
 def corrections_applied(run_dir):
     """(count, how) or (None, why) when the run does not say."""
     log = read_log(run_dir)
     if not log:
         return None, "no log.txt"
-    by_part1 = PART1_CORRECTED in log
+    by_part1 = any(marker in log for marker in PART1_CORRECTED)
     meta = read_meta(run_dir)
     if meta is None:
         # No deep quantification in this configuration; only Part1 could correct.
@@ -81,7 +112,7 @@ def expected_corrections(log):
     for line in log.splitlines():
         if "Part1_ProcessMRSI.sh -c " in line:
             args = line.split("Part1_ProcessMRSI.sh", 1)[1].split()
-            asked = "-0" in args
+            asked = "-A" in args
             quantifies = "-Q" in args
             # deepmrsi corrects by default, so a -Q run corrects even without -0.
             return 1 if (asked or quantifies) else 0
@@ -101,10 +132,14 @@ def main(root, names):
     )
     failures = []
     maps = {}
+    codes = exit_codes(root)
 
     print("=== corrections applied ===")
     for name in runs:
         run_dir = os.path.join(root, name)
+        if codes.get(name, 0) != 0:
+            print(f"  {name:28s} refused (exit {codes[name]}), nothing to correct")
+            continue
         count, how = corrections_applied(run_dir)
         want = expected_corrections(read_log(run_dir))
         if count is None:
@@ -115,24 +150,28 @@ def main(root, names):
         if not ok:
             failures.append(f"{name}: correction applied {count} times, wanted {want}")
         found = b0_map(run_dir)
+        # Grouped by reconstruction, because the two produce different reference
+        # scans and comparing across them is a different question with a
+        # different tool: compare_b0_maps.py, which reports it by signal band.
         if found is not None:
-            maps[name] = found
+            maps.setdefault(reconstruction_route(read_log(run_dir)), {})[name] = found
 
-    print("\n=== field map parity ===")
-    if len(maps) < 2:
-        print("  fewer than two runs emitted B0map_Hz, nothing to compare")
-    else:
-        reference_name, reference = sorted(maps.items())[0]
-        print(f"  reference: {reference_name}  shape {reference.shape}, "
+    print("\n=== field map parity, within each reconstruction ===")
+    for route, route_maps in sorted(maps.items()):
+        if len(route_maps) < 2:
+            print(f"  {route}: fewer than two runs emitted B0map_Hz, nothing to compare")
+            continue
+        reference_name, reference = sorted(route_maps.items())[0]
+        print(f"  {route} reference: {reference_name}  shape {reference.shape}, "
               f"median {np.median(reference):.3f} Hz")
-        for name, found in sorted(maps.items())[1:]:
+        for name, found in sorted(route_maps.items())[1:]:
             if found.shape != reference.shape:
-                print(f"  {name:28s} shape {found.shape} != {reference.shape}  FAIL")
+                print(f"    {name:28s} shape {found.shape} != {reference.shape}  FAIL")
                 failures.append(f"{name}: B0map_Hz shape differs from {reference_name}")
                 continue
             worst = float(np.max(np.abs(found - reference)))
             ok = worst <= 1e-6
-            print(f"  {name:28s} max |diff| {worst:.3e} Hz  {'ok' if ok else 'FAIL'}")
+            print(f"    {name:28s} max |diff| {worst:.3e} Hz  {'ok' if ok else 'FAIL'}")
             if not ok:
                 failures.append(
                     f"{name}: B0map_Hz differs from {reference_name} by up to {worst:.3g} Hz"
