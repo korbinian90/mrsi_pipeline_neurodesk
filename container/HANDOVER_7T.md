@@ -11,32 +11,28 @@ validated in this image; see "What is not covered" at the end.
 ## Load it
 
 ```bash
-gunzip -c mrsi-pipeline_7t.tar.gz | docker load
-docker run --rm mrsi-pipeline:7t-tom mrsi-versions
+gunzip -c mrsi-pipeline_7t-rc5.tar.gz | docker load
+docker run --rm mrsi-pipeline:7t-tom2 mrsi-versions
 ```
 
-The tarball is 16.4 GB. Check it arrived intact before loading, since a truncated
-transfer fails in confusing ways much later:
+The tarball is TARBALL_SIZE_PLACEHOLDER. Check it arrived intact before loading,
+since a truncated transfer fails in confusing ways much later:
 
 ```bash
-sha256sum mrsi-pipeline_7t.tar.gz
-# 5caa1a58a7bf53be4dd001267f0b8a05384868407ca95fbb8d0dde93b645aafa
+sha256sum mrsi-pipeline_7t-rc5.tar.gz
+# TARBALL_SHA256_PLACEHOLDER
 ```
 
 `mrsi-versions` prints the four source commits the image was built from, the
 MATLAB Runtime, the WALINET models present and the default fitter. Quote its
-output in any question about a result.
-
-Its last three lines, `walinet model`, `fitting` and `apply_walinet`, come from the
-package configuration and describe the **online scanner route only**. The command
-line below takes all three from `-L`, `-0` and `-Q` instead, so `apply_walinet
-True` there does not mean this pipeline applies WALINET unless asked. It does not:
-without `-L WALINET` no removal runs.
+output in any question about a result. The three values it labels as online
+route defaults are the scanner route's; the command line below sets all three
+itself, through `-L`, `-A` and `-Q`.
 
 With Apptainer instead of Docker:
 
 ```bash
-apptainer build mrsi-pipeline.sif docker-archive://mrsi-pipeline_7t.tar.gz
+apptainer build mrsi-pipeline.sif docker-archive://mrsi-pipeline_7t-rc5.tar.gz
 ```
 
 ## How this image was built
@@ -46,7 +42,7 @@ rebuilt exactly. `mrsi-versions` inside the image reports the same four values,
 so a result can always be traced back without consulting this file.
 
 ```bash
-IMAGE=mrsi-pipeline:7t-tom  DEEPFIRE_REF=7cc1f1037aa3f0fd2fe1b5e70bed33fb680cc116  PART1_REF=f42ea63ea706a870fd734c8719827190b972deac  PART2_REF=0f4ffe3b4bd4aaade4800ca2710f67783676523f  MRSIJL_REF=21c21930df4f802d2bae2e6e4b348b29c394347a  REQUIRE_WALINET_MODELS=7T  TORCH_INDEX_URL=https://download.pytorch.org/whl/cu118  ./container/build.sh
+IMAGE=mrsi-pipeline:7t-tom2  DEEPFIRE_REF=2aea8328c9f4bcb45c62e91bfa7a3a0f79bd39cc  PART1_REF=f42ea63ea706a870fd734c8719827190b972deac  PART2_REF=0f4ffe3b4bd4aaade4800ca2710f67783676523f  MRSIJL_REF=2a80c779417fdc6680e9f9ff37178e40b75857ff  REQUIRE_WALINET_MODELS=7T  TORCH_INDEX_URL=https://download.pytorch.org/whl/cu118  ./container/build.sh
 ```
 
 `REQUIRE_WALINET_MODELS=7T` asserts the 7T weights are present. It does not
@@ -62,7 +58,7 @@ the CPU wheel, which reports no CUDA device even on a GPU host.
 docker run --rm --gpus all \
   -v /path/to/dats:/dats:ro \
   -v /path/to/output:/out \
-  mrsi-pipeline:7t-tom \
+  mrsi-pipeline:7t-tom2 \
   Part1_ProcessMRSI.sh \
     -c /dats/meas_MIDxxxxx.dat \
     -o /out/run1 \
@@ -70,7 +66,7 @@ docker run --rm --gpus all \
     -j /opt/Part1/ControlFiles/LCModel_Control_7T_3D_CRT_test_v1.m \
     -S auto \
     -L "WALINET,7T" \
-    -0 \
+    -A Patref \
     -Q gpufit \
     -t /out/anat.mnc
 ```
@@ -80,7 +76,7 @@ docker run --rm --gpus all \
 * `-b` the LCModel basis, `-j` the LCModel control file. Both are inside the
   image at the paths above; they are only needed for the LCModel route but are
   read either way.
-* `-L "WALINET,7T"` removes water and lipids, `-0` aligns the spectra first,
+* `-L "WALINET,7T"` removes water and lipids, `-A Patref` aligns the spectra first,
   and `-Q gpufit` fits what comes out. The three are independent: drop any of
   them and the rest still work.
 * `-S auto` selects the Julia reconstruction. Leave it off for the MATLAB one.
@@ -98,7 +94,7 @@ Check the GPU is actually visible before starting a long run, because the
 fallback is silent:
 
 ```bash
-docker run --rm --gpus all mrsi-pipeline:7t-tom mrsi-versions
+docker run --rm --gpus all mrsi-pipeline:7t-tom2 mrsi-versions
 ```
 
 `CUDA visible True` means the fitting will use it. `False` on a machine that has
@@ -130,12 +126,18 @@ fitter, exactly as L1 and L2 do.
 | `-Q gpufit` | the GPU fitter. Maps go to `<out>/deepMRSI` as NIfTI |
 | `-Q dlfit` | the deep-learning fitter. 840-point grid only |
 
-**B0 correction**, `-0`: applies the measured field shift to the spectra directly
-before WALINET, which is the order the online scanner pipeline uses. It has no
-effect unless WALINET runs. On the fixture it lowers the CRLB of every metabolite
-and raises the amplitudes, which is the signature of a real frequency alignment
-rather than a rescaling. Off by default, so a run without it reproduces earlier
-results.
+**Frequency alignment**, `-A`: one flag, one correction, whichever stages a
+configuration chains together. `-A Patref` measures the field shift from the
+reference scan, the way the online scanner pipeline does, so it needs no second
+acquisition; it is applied to the finished reconstruction, before WALINET, whose
+model was trained on corrected data. On the fixture it lowers the CRLB of every
+metabolite and raises the amplitudes, which is the signature of a real frequency
+alignment rather than a rescaling.
+
+The other methods, `-A Alignment` and `-A "Alignment,<path>"`, run inside the
+MATLAB reconstruction and need `-S` dropped. Whichever one runs, the fitting step
+is told the data already carries the correction and does not apply a second one.
+Off by default; without `-A`, `-Q` still corrects on its own, as it always has.
 
 WALINET needs `-S auto`: the MATLAB reconstruction has no WALINET, so asking for
 it without the Julia route stops rather than quietly reconstructing with no
@@ -163,6 +165,31 @@ Runs without WALINET keep the full acquisition.
 
 `deepMRSI/CITATIONS.txt` lists what to cite for the components that ran.
 
+### What the numbers in deepMRSI mean
+
+Every map except the field map is multiplied by 1000 on the way out, so read the
+stored values as thousandths. `deepMRSI/meta.json` says the same thing per map
+type and is the machine-readable version of this table.
+
+| file | contains |
+|---|---|
+| `NAA.nii.gz` | the fitted amplitude, in the raw units of the input data, x1000 |
+| `NAA_tCr.nii.gz` | that amplitude over tCr, x1000, so 1267 means 1.267 |
+| `NAA_crlb.nii.gz` | the **relative** CRLB, sigma over amplitude, x1000, so 190 means 19% |
+| `B0map_Hz.nii.gz` | the measured field map, in hertz, not scaled. Written whether or not the correction was applied, so two runs can be compared on it |
+
+**The CRLB maps are relative in this build.** The previous image stored an
+absolute standard deviation in the fitter's internal units, which had to be
+divided by the amplitude map before it read as a percentage. That division is
+now done for you, and a threshold written against the old maps does not carry
+over.
+
+**Amplitudes are in the raw units of the input data.** The previous image left
+the fitter's internal normalisation in place, so absolute amplitudes from the
+two images differ by a per-dataset scalar and are not comparable. Ratio maps
+and the relative CRLBs are unaffected: the scalar cancels in both. `Fits`,
+`Baselines` and `Spectra_window` moved with the amplitudes.
+
 ## What has been checked
 
 Sixteen configurations on a 16x16x5, 840-point fixture, run against this image with
@@ -174,7 +201,7 @@ Sixteen configurations on a 16x16x5, 840-point fixture, run against this image w
 | Julia, L2 | 1280/1280 | 46 maps | 52 maps |
 | Julia, L1 | 1280/1280 | - | - |
 | Julia, WALINET 7T | 1280/1280 | 46 maps | 52 maps |
-| Julia, WALINET 7T with `-0` | - | 46 maps | - |
+| Julia, WALINET 7T with `-A Patref` | - | 46 maps | - |
 | MATLAB, no decontamination | 1280/1280 | - | - |
 | MATLAB, L2 | 1280/1280 | - | - |
 
@@ -208,10 +235,16 @@ Two runs on this image, not on the fixture.
 is exact including MUSICAL coil combination.
 
 **58 x 58 x 21, 864 points, 40 GB.** The same shape and readout length as the data
-this build is for, run with `-S auto -0 -L "WALINET,7T" -Q gpufit`. Exit 0 in 107
-minutes on one GPU, 46 maps, NAA at 19% median CRLB over 12,984 voxels. The crop
-fired: 864 acquired, 840 into the removal, the original kept beside it as
-`CombinedCSI_beforeWalinet.mat`, and the fits reporting 840.
+this build is for, run with `-S auto -A Patref -L "WALINET,7T" -Q gpufit`. Exit 0
+in 107 minutes on one GPU, 46 maps. The crop fired: 864 acquired, 840 into the
+removal, the original kept beside it as `CombinedCSI_beforeWalinet.mat`, and the
+fits reporting 840.
+
+TO BE REDONE BEFORE THIS SHIPS: the fit quality from that run is not quoted here.
+It came from a build in which this configuration applied the field correction
+twice, once in the reconstruction and once in the fitting, so its CRLBs describe
+data shifted by twice the measured field. The run has to be repeated on this
+build before any number from it is used.
 
 **The fitter was checked against LCModel** rather than only against itself. On the
 same voxels of the same 32-channel dataset, gpufit and LCModel agree to 3 to 8% on

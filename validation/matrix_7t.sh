@@ -29,9 +29,11 @@ Configs=(
   # -A Patref on the MATLAB reconstruction. Same estimator, other implementation:
   # compare_b0_maps.py checks the two against each other and against calculate_B0.
   "matlab-patref-gpufit|0||-A|Patref|-Q|gpufit"
-  # Alignment and Overdiscrete live in the MATLAB reconstruction, so -S refuses
-  # them rather than building a map it would discard.
-  "refuse-align-no-julia|1|-S auto|-A|Alignment"
+  # Alignment and Overdiscrete live in the MATLAB reconstruction. -S declines
+  # them and the run falls back to MATLAB, the same way it does for a W2 water
+  # reference, so the method still runs and the record still stops the deep
+  # fitting correcting on top of it.
+  "matlab-fallback-align-gpufit|0|-S auto|-A|Alignment|-Q|gpufit"
   # A typo in the method must not fall through to the peak search.
   "refuse-align-unknown|1|-S auto|-A|Patrf"
   "julia-walinet-dlfit|0|-S auto|-L|WALINET,7T|-Q|dlfit"

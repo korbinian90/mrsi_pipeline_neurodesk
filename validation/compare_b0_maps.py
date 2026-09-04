@@ -58,7 +58,13 @@ def read_reference(run_dir):
         ref = (raw["real"] + 1j * raw["imag"]).astype(np.complex64)
     else:
         ref = np.asarray(raw, dtype=np.complex64)
-    return ref.transpose(range(ref.ndim)[::-1]), dwelltime, csi_shape[:3]
+    ref = ref.transpose(range(ref.ndim)[::-1])
+    # MATLAB drops trailing singleton dimensions when it saves, so a
+    # single-channel reference comes back as (x, y, z, t) rather than
+    # (x, y, z, t, 1). calculate_B0 reads the channel axis, so it is restored.
+    if ref.ndim == 4:
+        ref = ref[..., np.newaxis]
+    return ref, dwelltime, csi_shape[:3]
 
 
 def main(run_dirs):
