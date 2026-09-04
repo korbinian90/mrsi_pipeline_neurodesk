@@ -69,6 +69,14 @@ the extremes describe the noise. On the 7T fixture the two agree to 0.000 Hz
 median in the top tenth of voxels by reference signal, with a spread that halves
 each time the band tightens.
 
+`b0_noise_floor.py <matlab run> <julia run>` answers the question the difference
+alone cannot: how precisely the field is known at all from that reference scan.
+The map is a mean of per-step phase differences, so its standard error follows
+from their scatter. A difference far below that uncertainty cannot be resolved
+from the data, whatever its origin. Note the two reconstructions see the same raw
+data, so their errors are correlated and the difference does not have to reach
+the noise floor to be noise; the comparison gives a ceiling, not a test.
+
 `run_evidence.sh <run directory>` pulls the handful of lines that say what a
 single run actually did out of its log, which is otherwise a hundred thousand
 lines long.
