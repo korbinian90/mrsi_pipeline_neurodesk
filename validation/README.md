@@ -46,6 +46,29 @@ Two questions, both answered from what the runs left behind:
   every run of one dataset must emit the same numbers. A run that differs has
   read a different reference or scaled it differently.
 
+## Comparing the two reconstructions
+
+`-A Patref` is implemented twice, in `MRSI_Reconstruction.m` and in
+`apply_b0_patref.py`, so the MATLAB and the Julia route can be checked against
+each other on the field map both write:
+
+```
+IMAGE=mrsi-pipeline:local ./matrix_7t.sh <dat> <out_root> matlab-patref-gpufit
+JULIA_RECO_MATLAB_PARITY=true IMAGE=mrsi-pipeline:local ./matrix_7t.sh <dat> <out_root> julia-b0-gpufit
+python compare_b0_maps.py <out_root>/matlab-patref-gpufit <out_root>/julia-b0-gpufit
+```
+
+`JULIA_RECO_MATLAB_PARITY` matters. Without it the Julia reconstruction corrects
+the frequency drift the protocol asks for and the MATLAB one does not do at all,
+which is a real difference in the data and not a defect in either, but it is
+larger than everything else and swamps the comparison.
+
+Read the result by signal band rather than by the worst voxel. A field map
+derived from phase is as noisy as the voxel is quiet, so on a low SNR reference
+the extremes describe the noise. On the 7T fixture the two agree to 0.000 Hz
+median in the top tenth of voxels by reference signal, with a spread that halves
+each time the band tightens.
+
 `run_evidence.sh <run directory>` pulls the handful of lines that say what a
 single run actually did out of its log, which is otherwise a hundred thousand
 lines long.

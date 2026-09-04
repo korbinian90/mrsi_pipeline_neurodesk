@@ -67,11 +67,23 @@ def read_reference(run_dir):
     return ref, dwelltime, csi_shape[:3]
 
 
+def _signal_bands(signal, valid):
+    """All voxels, then the strongest by reference-scan magnitude."""
+    bands = [("all voxels", valid)]
+    if signal is None:
+        return bands
+    for fraction, label in ((0.5, "top 50% signal"), (0.1, "top 10% signal")):
+        cut = np.quantile(signal[valid], 1 - fraction)
+        bands.append((label, valid & (signal >= cut)))
+    return bands
+
+
 def main(run_dirs):
     from deep_crt_mrsi.b0_correction import calculate_B0
 
     failures = []
     maps = {}
+    signals = {}
 
     print("=== estimator, each run against calculate_B0 on its own reference ===")
     for run_dir in run_dirs:
@@ -85,6 +97,7 @@ def main(run_dirs):
             print(f"  {name:26s} no AlignFreq/B0map_Hz.raw, so -A Patref did not run")
             continue
         maps[name] = written
+        signals[name] = np.abs(reference).mean(axis=(3, 4))
         expected = np.asarray(calculate_B0(reference, dwelltime), dtype=np.float64)
         # The writer zeroes the map outside the brain mask, so only the voxels it
         # actually corrected can be compared against an unmasked recomputation.
@@ -112,8 +125,18 @@ def main(run_dirs):
                 failures.append(f"{name}: map shape differs from {ref_name}")
                 continue
             both = (found != 0) & (reference != 0)
-            worst = float(np.max(np.abs(found[both] - reference[both]))) if both.any() else 0.0
-            print(f"  {name:26s} max |diff| {worst:.3e} Hz over {int(both.sum())} voxels")
+            diff = found - reference
+            print(f"  {name} vs {ref_name}:")
+            # Reported by signal, because a field map estimated from phase is as
+            # noisy as the voxel is quiet: on a low SNR reference the worst voxel
+            # says more about the noise than about the two reconstructions.
+            for label, sel in _signal_bands(signals.get(name), both):
+                if not sel.any():
+                    continue
+                d = diff[sel]
+                print(f"      {label:14s} n={int(sel.sum()):5d}  median {np.median(d):7.3f}  "
+                      f"5-95% {np.percentile(d, 5):7.2f}..{np.percentile(d, 95):<7.2f}  "
+                      f"max|.| {np.max(np.abs(d)):7.2f} Hz")
             print("      a difference here is the reference scan the two routes "
                   "reconstructed, not the correction")
 

@@ -15,7 +15,7 @@
 #   USE_GPU   "no" to run without --gpus all
 set -euo pipefail
 
-IMAGE="${IMAGE:-mrsi-pipeline:local}"
+IMAGE="${IMAGE:-mrsi-pipeline:7t-rc3}"
 BASIS="${BASIS:-/opt/deepmrsi/python-ismrmrd-server/DEEP_CRT_MRSI/install/forD/data/basis/fid_1.300000ms.basis}"
 CTRL="${CTRL:-/opt/Part1/ControlFiles/LCModel_Control_7T_3D_CRT_test_v1.m}"
 
@@ -62,6 +62,15 @@ if [[ -n "${DEEPFIRE_SRC:-}" ]]; then
     fi
 fi
 
+# Settings a run needs that are not Part1 arguments. Forwarded only when set, so
+# the acceptance run's environment is exactly the image's own.
+Env=()
+# EnvName, not Name: Name is this script's run name and a loop over it renames
+# the output directory after the last variable checked.
+for EnvName in JULIA_RECO_MATLAB_PARITY; do
+    [[ -n "${!EnvName:-}" ]] && Env+=(-e "$EnvName=${!EnvName}")
+done
+
 Gpu=()
 if [[ "${USE_GPU:-auto}" != "no" ]] && nvidia-smi -L >/dev/null 2>&1; then
     Gpu=(--gpus all)
@@ -70,8 +79,8 @@ else
 fi
 
 # The script is written into the mounted output directory rather than passed as
-# its own bind mount: a host that rewrites POSIX paths creates a directory at
-# the target instead, and the run dies with "Is a directory".
+# a bind mount: Docker on Windows turns a POSIX temp path into a directory at
+# the target and the run dies with "Is a directory".
 Script="$OutRoot/.run_${Name}.sh"
 {
     echo '#!/bin/bash'
@@ -92,7 +101,7 @@ echo "  args : $*"
 Start=$(date +%s)
 set +e
 MSYS_NO_PATHCONV=1 docker run --rm --name "matrix-$Name" \
-    ${Gpu[@]+"${Gpu[@]}"} \
+    ${Gpu[@]+"${Gpu[@]}"}     ${Env[@]+"${Env[@]}"} \
     ${Src[@]+"${Src[@]}"} \
     -v "$DataDir:/dats:ro" -v "$OutRoot:/out" \
     --entrypoint bash "$IMAGE" "/out/.run_${Name}.sh"
