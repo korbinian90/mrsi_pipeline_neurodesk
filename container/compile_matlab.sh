@@ -78,6 +78,18 @@ else
     echo "WARNING: no $OVERLAY. compile.m names files it supplies and will refuse," >&2
     echo "         and any binary that did build would fail at its first de2bi call." >&2
 fi
+
+# Part1 carries MRSIMatlabFunctions as a submodule and gitignores the whole
+# MatlabFunctions tree, so a checkout that never initialised it has the directory
+# and nothing in it. mcc is happy to compile against that: it produces binaries a
+# third of the size which then fail at their first call into the missing code.
+MrsiFunctions="$Target/MRSIMatlabFunctions"
+if [[ $(find "$MrsiFunctions" -name '*.m' 2>/dev/null | wc -l) -lt 100 ]]; then
+    echo "ERROR: $MrsiFunctions holds almost no .m files." >&2
+    echo "       It is a submodule; run 'git submodule update --init' in the Part1" >&2
+    echo "       checkout, or copy the directory in from one that has it." >&2
+    exit 1
+fi
 echo
 
 cd "$PART1_DIR"

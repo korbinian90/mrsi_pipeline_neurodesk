@@ -8,10 +8,9 @@ set -uo pipefail
 
 Here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 Dat=$1; OutRoot=$2; shift 2
-# Masking from an anatomical is the only supported way: the -m bet branch runs
-# the outskin BET only when a T1 is given, and consumes its output
-# unconditionally, so -m bet on its own breaks the MINC chain. Put the T1, as
-# MINC, at <out_root>/synthetic_t1.mnc before running.
+# Tom masks from an anatomical, which is also the only supported way: the -m bet
+# branch runs the outskin BET only when a T1 is given, and consumes its output
+# unconditionally, so -m bet on its own breaks the MINC chain.
 T1='/out/synthetic_t1.mnc'
 
 # name|expected exit|args
@@ -23,10 +22,18 @@ Configs=(
   "julia-gpufit|0|-S auto|-Q|gpufit"
   "julia-dlfit|0|-S auto|-Q|dlfit"
   "julia-walinet-gpufit|0|-S auto|-L|WALINET,7T|-Q|gpufit"
-  "julia-walinet-b0-gpufit|0|-S auto|-0|-L|WALINET,7T|-Q|gpufit"
+  "julia-walinet-b0-gpufit|0|-S auto|-A|Patref|-L|WALINET,7T|-Q|gpufit"
   # -0 with no WALINET: nothing corrects before deepmrsi, so deepmrsi does it.
   # The parity partner of the two above; all three must measure the same map.
-  "julia-b0-gpufit|0|-S auto|-0|-Q|gpufit"
+  "julia-b0-gpufit|0|-S auto|-A|Patref|-Q|gpufit"
+  # -A Patref on the MATLAB reconstruction. Same estimator, other implementation:
+  # compare_b0_maps.py checks the two against each other and against calculate_B0.
+  "matlab-patref-gpufit|0||-A|Patref|-Q|gpufit"
+  # Alignment and Overdiscrete live in the MATLAB reconstruction, so -S refuses
+  # them rather than building a map it would discard.
+  "refuse-align-no-julia|1|-S auto|-A|Alignment"
+  # A typo in the method must not fall through to the peak search.
+  "refuse-align-unknown|1|-S auto|-A|Patrf"
   "julia-walinet-dlfit|0|-S auto|-L|WALINET,7T|-Q|dlfit"
   "julia-l2-gpufit|0|-S auto|-L|L2,1e-3|-Q|gpufit"
   "julia-l2-dlfit|0|-S auto|-L|L2,1e-3|-Q|dlfit"
@@ -55,8 +62,8 @@ for Entry in "${Configs[@]}"; do
         [[ -n "${Fields[$i]}" ]] || continue
         # Only "-S auto" is a field carrying two separate arguments. Everything
         # else stays one argument however many spaces it has: -m takes its bet
-        # options as a single word, and splitting on spaces would pass
-        # -m "bet,-f" with the rest as stray arguments.
+        # options as a single word, and splitting them is how the 2026-08-30
+        # matrix ended up passing -m "bet,-f" with the rest as stray arguments.
         if [[ "${Fields[$i]}" == "-S "* ]]; then
             read -ra Parts <<< "${Fields[$i]}"
             Args+=("${Parts[@]}")
