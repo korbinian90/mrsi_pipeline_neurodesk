@@ -144,6 +144,16 @@ for var in PART1_REF PART2_REF DEEPFIRE_REF MRSIJL_REF TORCH_INDEX_URL REQUIRE_W
     printf '  %-15s = %s\n' "${var}" "${!var:-<Dockerfile default>}"
 done
 
+# The Dockerfile default for this one is the CPU wheel, so leaving it unset
+# produces an image whose fitters run about 37x slower and whose maps are
+# otherwise correct. That combination hides for a long time.
+if [[ -z ${TORCH_INDEX_URL:-} ]]; then
+    echo
+    echo "  NOTE: TORCH_INDEX_URL is unset, so torch comes from the CPU wheel."
+    echo "        For a machine with a GPU, pass:"
+        echo "          TORCH_INDEX_URL=https://download.pytorch.org/whl/cu118"
+fi
+
 DOCKER_BUILDKIT=1 docker build \
     --ssh "${SSH_FORWARD}" \
     ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"} \

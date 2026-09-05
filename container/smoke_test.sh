@@ -64,6 +64,17 @@ check "julia under MCR LD_LIBRARY_PATH" \
 echo
 echo "== python / deepmrsi =="
 check "torch"              python -c 'import torch; print(torch.__version__, "cuda:", torch.version.cuda)'
+
+# A CPU wheel is a silent 37x on the fitters, and nothing else fails because of
+# it: the maps come out correct, only slowly. The build only takes the CUDA
+# wheel when TORCH_INDEX_URL is passed, and its default is the CPU one, so an
+# image built without that argument looks entirely healthy until someone times
+# a full grid. Fail here instead.
+check "torch built against CUDA"  python -c '
+import torch, sys
+if torch.version.cuda is None:
+    sys.exit("torch is " + torch.__version__ + ", a CPU build. Rebuild with --build-arg TORCH_INDEX_URL=https://download.pytorch.org/whl/cu118")
+print("built against CUDA", torch.version.cuda)'
 check "deep_crt_mrsi"      python -c 'import deep_crt_mrsi; print("ok")'
 check "mrs_utils"          python -c 'import mrs_utils; print("ok")'
 check "walinet"            python -c 'import walinet; print("ok")'
