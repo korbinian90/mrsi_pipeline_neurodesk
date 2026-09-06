@@ -105,7 +105,20 @@ rm -f "$Script"
 # the one where the count fails: an absent directory makes find exit non-zero and
 # pipefail plus set -e then take the whole script with it before it can report.
 count() { { find "$1" -maxdepth 1 -name "$2" 2>/dev/null || true; } | wc -l; }
+
+# Which reconstruction actually ran is not visible in the exit code, so record
+# it. An image whose Part1 still falls back to MATLAB reports success for a
+# broken Julia route, which is exactly what this column is here to catch.
+Route="-"
+if [[ " $* " == *" -S "* ]]; then
+    if grep -qa "Use the MATLAB reconstruction instead" "$OutRoot/$Name/log.txt" 2>/dev/null; then
+        Route="FELLBACK"
+        echo "  WARNING: -S was asked for and the run fell back to the MATLAB reconstruction." >&2
+    else
+        Route="julia"
+    fi
+fi
 Fits=$(count "$OutRoot/$Name/spectra" '*.table')
 Deep=$(count "$OutRoot/$Name/deepMRSI" '*.nii.gz')
-printf '%s\texit=%d\tlcm_tables=%d\tdeep_niftis=%d\t%ds\n' \
-    "$Name" "$Exit" "$Fits" "$Deep" "$Elapsed" | tee -a "$OutRoot/matrix_results.tsv"
+printf '%s\texit=%d\troute=%s\tlcm_tables=%d\tdeep_niftis=%d\t%ds\n' \
+    "$Name" "$Exit" "$Route" "$Fits" "$Deep" "$Elapsed" | tee -a "$OutRoot/matrix_results.tsv"
