@@ -162,6 +162,13 @@ DOCKER_BUILDKIT=1 docker build \
     "$@" \
     "${SCRIPT_DIR}/.."
 
+# Each image here is tens of gigabytes, so a series of release candidates
+# fills a disk quickly. Prune once the new one is known to be good.
+if [[ ${PRUNE_OLD_IMAGES:-1} == 1 ]]; then
+    echo
+    IMAGE="${IMAGE}" "${SCRIPT_DIR}/prune_images.sh" "${IMAGE}"
+fi
+
 echo
 echo "Done. Record the refs that went in:"
 echo "  docker run --rm ${IMAGE} bash -lc 'for r in /opt/Part1 /opt/Part2 /opt/deepmrsi /opt/MRSI.jl; do echo -n \"\$r \"; git -C \$r rev-parse HEAD; done'"
