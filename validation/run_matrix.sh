@@ -35,7 +35,8 @@ Src=()
 if [[ -n "${PART1_SRC:-}" ]]; then
     echo "WARNING: PART1_SRC is set, so this run does NOT test the image as shipped." >&2
     for File in Part1_ProcessMRSI.sh run_matlab.sh create_mask.sh InstallProgramPaths.sh \
-                run_julia_reco.jl walinet_clean_csi.py run_deepmrsi.py processing_record.py; do
+                run_julia_reco.jl walinet_clean_csi.py run_deepmrsi.py processing_record.py \
+                run_lcmodel_files.sh; do
         [[ -f "$PART1_SRC/$File" ]] && Src+=(-v "$PART1_SRC/$File:/opt/Part1/$File:ro")
     done
 fi
