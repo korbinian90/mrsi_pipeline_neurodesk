@@ -1,5 +1,7 @@
 # Compiled MATLAB and bash scripts for MRSI
 
+> **Research use only. Not a medical device. Not intended for diagnosis, treatment or clinical decisions.**
+
 The reconstruction algorithms and scripts were created by the Wolfgang Bogner group.
 
 All dependencies required to run these scripts are bundled in a Neurodesk container.
